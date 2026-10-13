@@ -1,0 +1,38 @@
+[
+    {
+        "merged": "com.example.apppet.app-debug-4:/drawable_bg_input.xml.flat",
+        "source": "com.example.apppet.app-main-6:/drawable/bg_input.xml"
+    },
+    {
+        "merged": "com.example.apppet.app-debug-4:/layout_activity_pet_detail.xml.flat",
+        "source": "com.example.apppet.app-main-6:/layout/activity_pet_detail.xml"
+    },
+    {
+        "merged": "com.example.apppet.app-debug-4:/layout_activity_add_pet.xml.flat",
+        "source": "com.example.apppet.app-main-6:/layout/activity_add_pet.xml"
+    },
+    {
+        "merged": "com.example.apppet.app-debug-4:/layout_detail_row_breed.xml.flat",
+        "source": "com.example.apppet.app-main-6:/layout/detail_row_breed.xml"
+    },
+    {
+        "merged": "com.example.apppet.app-debug-4:/drawable_bg_secondary_button.xml.flat",
+        "source": "com.example.apppet.app-main-6:/drawable/bg_secondary_button.xml"
+    },
+    {
+        "merged": "com.example.apppet.app-debug-4:/layout_item_pet.xml.flat",
+        "source": "com.example.apppet.app-main-6:/layout/item_pet.xml"
+    },
+    {
+        "merged": "com.example.apppet.app-debug-4:/drawable_bg_card.xml.flat",
+        "source": "com.example.apppet.app-main-6:/drawable/bg_card.xml"
+    },
+    {
+        "merged": "com.example.apppet.app-debug-4:/layout_activity_main.xml.flat",
+        "source": "com.example.apppet.app-main-6:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.example.apppet.app-debug-4:/drawable_bg_primary_button.xml.flat",
+        "source": "com.example.apppet.app-main-6:/drawable/bg_primary_button.xml"
+    }
+]
