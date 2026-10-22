@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.provider.MediaStore;
 import android.text.TextUtils;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -25,6 +26,8 @@ import com.example.apppet.model.PetType;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
@@ -33,6 +36,7 @@ import java.util.Locale;
 public class AddPetActivity extends Activity {
     public static final String EXTRA_PET_ID = "com.example.apppet.EDIT_PET_ID";
     private static final int REQUEST_CAMERA = 2201;
+    private static final int REQUEST_GALLERY = 2203;
 
     private DatabaseHelper databaseHelper;
     private EditText etName, etColor, etWeight, etDescription;
@@ -84,6 +88,7 @@ public class AddPetActivity extends Activity {
         Button btnCancel = findViewById(R.id.btnCancelAddPet);
         Button btnClearDate = findViewById(R.id.btnClearBirthDate);
         Button btnTakeAvatar = findViewById(R.id.btnTakePetAvatar);
+        Button btnPickGallery = findViewById(R.id.btnPickGallery);
         TextView btnBack = findViewById(R.id.btnBackAddPet);
 
         tvFormTitle.setText(editing ? "Sửa thông tin thú cưng" : "Thêm thú cưng");
@@ -94,6 +99,7 @@ public class AddPetActivity extends Activity {
         btnSave.setOnClickListener(v -> savePet());
         tvBirthDate.setOnClickListener(v -> showDatePicker());
         btnTakeAvatar.setOnClickListener(v -> openCamera());
+        btnPickGallery.setOnClickListener(v -> openGallery());
         btnClearDate.setOnClickListener(v -> {
             birthDate = null;
             tvBirthDate.setText("Chạm để chọn ngày sinh (không bắt buộc)");
@@ -113,7 +119,6 @@ public class AddPetActivity extends Activity {
         typeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spPetType.setAdapter(typeAdapter);
 
-        // Đặt loài ban đầu trước khi gắn listener để form sửa không nhảy về loài đầu tiên.
         if (editing) {
             for (int i = 0; i < petTypes.size(); i++) {
                 if (petTypes.get(i).id == existingPet.petTypeId) {
@@ -123,14 +128,14 @@ public class AddPetActivity extends Activity {
             }
         }
 
-        spPetType.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+        spPetType.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
-            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (position >= 0 && position < petTypes.size()) loadBreeds(petTypes.get(position));
             }
 
             @Override
-            public void onNothingSelected(android.widget.AdapterView<?> parent) {
+            public void onNothingSelected(AdapterView<?> parent) {
                 breeds.clear();
                 spBreed.setAdapter(new ArrayAdapter<>(AddPetActivity.this,
                         android.R.layout.simple_spinner_item, breeds));
@@ -206,33 +211,71 @@ public class AddPetActivity extends Activity {
         startActivityForResult(intent, REQUEST_CAMERA);
     }
 
+    private void openGallery() {
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        startActivityForResult(intent, REQUEST_GALLERY);
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != REQUEST_CAMERA || resultCode != RESULT_OK || data == null || data.getExtras() == null) return;
-        Object result = data.getExtras().get("data");
-        if (!(result instanceof Bitmap)) {
-            Toast.makeText(this, "Không nhận được ảnh từ camera. Vui lòng thử lại.", Toast.LENGTH_LONG).show();
+        if (resultCode != RESULT_OK) return;
+
+        if (requestCode == REQUEST_GALLERY && data != null && data.getData() != null) {
+            Uri imageUri = data.getData();
+            avatarUri = saveImageToInternalStorage(imageUri);
+            showCurrentAvatar();
+            Toast.makeText(this, "Đã chọn ảnh từ thư viện. Nhấn lưu để cập nhật hồ sơ.", Toast.LENGTH_SHORT).show();
             return;
         }
-        Bitmap bitmap = (Bitmap) result;
-        FileOutputStream output = null;
-        try {
-            File directory = new File(getFilesDir(), "pet_avatars");
-            if (!directory.exists() && !directory.mkdirs()) throw new java.io.IOException("Không tạo được thư mục ảnh");
-            File photoFile = new File(directory, "pet_avatar_" + System.currentTimeMillis() + ".jpg");
-            output = new FileOutputStream(photoFile);
-            if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 90, output)) throw new java.io.IOException("Không ghi được ảnh");
-            output.flush();
-            avatarUri = Uri.fromFile(photoFile).toString();
-            showCurrentAvatar();
-            Toast.makeText(this, "Đã chụp ảnh avatar. Nhấn lưu để cập nhật hồ sơ.", Toast.LENGTH_SHORT).show();
-        } catch (Exception ex) {
-            Toast.makeText(this, "Không thể lưu ảnh: " + ex.getMessage(), Toast.LENGTH_LONG).show();
-        } finally {
-            if (output != null) {
-                try { output.close(); } catch (Exception ignored) { }
+
+        if (requestCode == REQUEST_CAMERA && data != null && data.getExtras() != null) {
+            Object result = data.getExtras().get("data");
+            if (!(result instanceof Bitmap)) {
+                Toast.makeText(this, "Không nhận được ảnh từ camera. Vui lòng thử lại.", Toast.LENGTH_LONG).show();
+                return;
             }
+            Bitmap bitmap = (Bitmap) result;
+            FileOutputStream output = null;
+            try {
+                File directory = new File(getFilesDir(), "pet_avatars");
+                if (!directory.exists() && !directory.mkdirs()) throw new IOException("Không tạo được thư mục ảnh");
+                File photoFile = new File(directory, "pet_avatar_" + System.currentTimeMillis() + ".jpg");
+                output = new FileOutputStream(photoFile);
+                if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 90, output)) throw new IOException("Không ghi được ảnh");
+                output.flush();
+                avatarUri = Uri.fromFile(photoFile).toString();
+                showCurrentAvatar();
+                Toast.makeText(this, "Đã chụp ảnh avatar. Nhấn lưu để cập nhật hồ sơ.", Toast.LENGTH_SHORT).show();
+            } catch (Exception ex) {
+                Toast.makeText(this, "Không thể lưu ảnh: " + ex.getMessage(), Toast.LENGTH_LONG).show();
+            } finally {
+                if (output != null) {
+                    try { output.close(); } catch (Exception ignored) { }
+                }
+            }
+        }
+    }
+
+    private String saveImageToInternalStorage(Uri uri) {
+        try {
+            InputStream inputStream = getContentResolver().openInputStream(uri);
+            if (inputStream == null) return uri.toString();
+
+            File file = new File(getFilesDir(), "pet_avatar_" + System.currentTimeMillis() + ".jpg");
+            FileOutputStream outputStream = new FileOutputStream(file);
+            byte[] buffer = new byte[1024];
+            int read;
+            while ((read = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, read);
+            }
+            outputStream.flush();
+            outputStream.close();
+            inputStream.close();
+            return Uri.fromFile(file).toString();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return uri.toString();
         }
     }
 

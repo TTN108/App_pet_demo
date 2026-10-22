@@ -1,12 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primary">#2459C4</color>
-    <color name="primary_dark">#193E8A</color>
-    <color name="accent">#36A6A0</color>
-    <color name="background">#F4F7FC</color>
+    <!-- Base Colors -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Branch Nghia Light Theme Palette - Soft & Eye-Friendly (Non-glaring) -->
+    <color name="primary">#2B6CB0</color>
+    <color name="primary_dark">#1A365D</color>
+    <color name="accent">#319795</color>
+    <color name="background">#F8FAFC</color>
     <color name="surface">#FFFFFF</color>
-    <color name="text_primary">#182230</color>
-    <color name="text_secondary">#687386</color>
-    <color name="border">#DFE5EF</color>
-    <color name="danger">#C0392B</color>
+    <color name="text_primary">#1E293B</color>
+    <color name="text_secondary">#64748B</color>
+    <color name="border">#E2E8F0</color>
+    <color name="danger">#E53E3E</color>
+
+    <!-- Light Theme Mappings -->
+    <color name="bg_main">#F8FAFC</color>
+    <color name="bg_card">#FFFFFF</color>
+    <color name="bg_card_secondary">#F1F5F9</color>
+    <color name="bg_banner">#E2E8F0</color>
+    <color name="banner_blue_light">#2B6CB0</color>
+
+    <color name="primary_blue">#2B6CB0</color>
+    <color name="primary_blue_dark">#1A365D</color>
+    <color name="accent_orange">#DD6B20</color>
+    <color name="accent_orange_light">#FFEDD5</color>
+
+    <color name="text_white">#1E293B</color>
+    <color name="text_gray">#64748B</color>
+    <color name="text_muted">#94A3B8</color>
+    <color name="text_dark">#0F172A</color>
+
+    <color name="border_active">#2B6CB0</color>
+    <color name="border_inactive">#E2E8F0</color>
+
+    <!-- Sample gallery card backgrounds (soft pastels) -->
+    <color name="gallery_bg_1">#F0FDF4</color>
+    <color name="gallery_bg_2">#FEFCE8</color>
+    <color name="gallery_bg_3">#FEF2F2</color>
 </resources>

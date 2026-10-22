@@ -1,6 +1,7 @@
 package com.example.apppet;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -26,15 +27,32 @@ public class PetDetailActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_pet_detail);
+        petId = getIntent().getLongExtra(EXTRA_PET_ID, -1L);
+        userId = SessionManager.getUserId(this);
+        databaseHelper = new DatabaseHelper(this);
+
         findViewById(R.id.btnBackDetail).setOnClickListener(v -> finish());
         findViewById(R.id.btnEditPet).setOnClickListener(v -> {
             Intent intent = new Intent(PetDetailActivity.this, AddPetActivity.class);
             intent.putExtra(AddPetActivity.EXTRA_PET_ID, petId);
             startActivityForResult(intent, REQUEST_EDIT_PET);
         });
-        petId = getIntent().getLongExtra(EXTRA_PET_ID, -1L);
-        userId = SessionManager.getUserId(this);
-        databaseHelper = new DatabaseHelper(this);
+        findViewById(R.id.btnDeletePet).setOnClickListener(v -> {
+            new AlertDialog.Builder(this)
+                    .setTitle("Xóa thú cưng?")
+                    .setMessage("Bạn có chắc chắn muốn xóa thú cưng này không? Hành động này không thể hoàn tác.")
+                    .setPositiveButton("Xóa", (dialog, which) -> {
+                        if (databaseHelper.deletePet(petId, userId)) {
+                            Toast.makeText(this, "Đã xóa thú cưng thành công.", Toast.LENGTH_SHORT).show();
+                            setResult(RESULT_OK);
+                            finish();
+                        } else {
+                            Toast.makeText(this, "Không thể xóa thú cưng lúc này.", Toast.LENGTH_SHORT).show();
+                        }
+                    })
+                    .setNegativeButton("Hủy", null)
+                    .show();
+        });
         renderPet();
     }
 

@@ -1,234 +1,277 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background"
-    android:fitsSystemWindows="true"
-    android:orientation="vertical">
+    android:fillViewport="true"
+    android:fitsSystemWindows="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="18dp"
-        android:paddingTop="18dp"
-        android:paddingEnd="18dp"
-        android:paddingBottom="14dp">
-
-        <TextView
-            android:id="@+id/btnBackAddPet"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="@drawable/bg_card"
-            android:gravity="center"
-            android:text="‹"
-            android:textColor="@color/text_primary"
-            android:textSize="32sp" />
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="13dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:id="@+id/tvAddPetTitle"
-                android:text="Thêm thú cưng"
-                android:textColor="@color/text_primary"
-                android:textSize="22sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:id="@+id/tvAddPetSubtitle"
-                android:text="Nhập thông tin cơ bản của thú cưng"
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clipToPadding="false"
-        android:fillViewport="true"
-        android:paddingStart="18dp"
-        android:paddingEnd="18dp">
+        android:orientation="vertical"
+        android:padding="22dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingBottom="18dp">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
+            <TextView
+                android:id="@+id/btnBackAddPet"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="8dp"
+                android:text="← Quay lại"
+                android:textColor="@color/primary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvAddPetTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Thêm thú cưng"
+                    android:textColor="@color/text_primary"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvAddPetSubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Nhập thông tin cơ bản của thú cưng"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="18dp">
+
+            <!-- Avatar Preview & Camera/Gallery -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:background="@drawable/bg_card"
                 android:gravity="center"
-                android:orientation="vertical"
-                android:padding="16dp">
+                android:orientation="vertical">
+
                 <ImageView
                     android:id="@+id/ivPetAvatarPreview"
-                    android:layout_width="112dp"
-                    android:layout_height="112dp"
-                    android:background="@drawable/bg_secondary_button"
-                    android:padding="8dp"
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
+                    android:background="@drawable/bg_input"
+                    android:padding="4dp"
                     android:scaleType="centerCrop"
-                    android:src="@android:drawable/ic_menu_camera"
-                    android:contentDescription="Ảnh đại diện thú cưng" />
-                <Button
-                    android:id="@+id/btnTakePetAvatar"
-                    android:layout_width="wrap_content"
-                    android:layout_height="46dp"
-                    android:layout_marginTop="10dp"
-                    android:background="@drawable/bg_secondary_button"
-                    android:stateListAnimator="@null"
-                    android:text="Chụp ảnh avatar"
-                    android:textAllCaps="false"
-                    android:textColor="@color/primary" />
-                <TextView
+                    android:src="@drawable/ic_cat_orange"
+                    android:contentDescription="Avatar" />
+
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    android:layout_marginTop="10dp"
                     android:gravity="center"
-                    android:text="Ảnh sẽ được lưu trên thiết bị và liên kết trong bảng pet_images"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="11sp" />
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btnTakePetAvatar"
+                        android:layout_width="wrap_content"
+                        android:layout_height="38dp"
+                        android:background="@drawable/bg_secondary_button"
+                        android:minWidth="0dp"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:stateListAnimator="@null"
+                        android:text="📷 Chụp ảnh"
+                        android:textAllCaps="false"
+                        android:textColor="@color/primary"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <Button
+                        android:id="@+id/btnPickGallery"
+                        android:layout_width="wrap_content"
+                        android:layout_height="38dp"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/bg_secondary_button"
+                        android:minWidth="0dp"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:stateListAnimator="@null"
+                        android:text="🖼️ Chọn từ thư viện"
+                        android:textAllCaps="false"
+                        android:textColor="@color/primary"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
             </LinearLayout>
 
-            <TextView style="@style/FormLabel" android:text="Tên thú cưng *" />
+            <!-- Form Fields -->
+            <TextView
+                style="@style/FormLabel"
+                android:text="Tên thú cưng *" />
+
             <EditText
                 android:id="@+id/etPetName"
                 style="@style/FormEditText"
-                android:hint="Ví dụ: Bông, Đậu, Milo"
-                android:imeOptions="actionNext"
-                android:inputType="textCapSentences"
-                android:maxLength="80" />
+                android:hint="Ví dụ: Mèo Mun, Milu, Bống..."
+                android:inputType="textPersonName"
+                android:singleLine="true" />
 
-            <TextView style="@style/FormLabel" android:text="Loài thú cưng *" />
+            <TextView
+                style="@style/FormLabel"
+                android:text="Loài thú cưng *" />
+
             <Spinner
                 android:id="@+id/spPetType"
-                style="@style/FormSpinner" />
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/bg_input"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp" />
 
-            <TextView style="@style/FormLabel" android:text="Giống" />
+            <TextView
+                style="@style/FormLabel"
+                android:text="Giống (Breed)" />
+
             <Spinner
                 android:id="@+id/spPetBreed"
-                style="@style/FormSpinner" />
-            <TextView
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Danh sách giống tự thay đổi theo loài đã chọn. Có thể để trống nếu chưa rõ giống."
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
+                android:layout_height="48dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/bg_input"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp" />
 
-            <TextView style="@style/FormLabel" android:text="Giới tính" />
+            <TextView
+                style="@style/FormLabel"
+                android:text="Giới tính" />
+
             <Spinner
                 android:id="@+id/spPetGender"
-                style="@style/FormSpinner" />
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/bg_input"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp" />
 
-            <TextView style="@style/FormLabel" android:text="Ngày sinh" />
+            <TextView
+                style="@style/FormLabel"
+                android:text="Ngày sinh" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
+
                 <TextView
                     android:id="@+id/tvBirthDate"
                     android:layout_width="0dp"
-                    android:layout_height="50dp"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="6dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_input"
                     android:gravity="center_vertical"
-                    android:paddingStart="13dp"
-                    android:paddingEnd="10dp"
-                    android:text="Chạm để chọn ngày sinh (không bắt buộc)"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:text="Chạm để chọn ngày sinh"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp" />
+
                 <Button
                     android:id="@+id/btnClearBirthDate"
                     android:layout_width="wrap_content"
-                    android:layout_height="46dp"
-                    android:layout_marginStart="6dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginTop="6dp"
                     android:background="@drawable/bg_secondary_button"
                     android:minWidth="0dp"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
                     android:stateListAnimator="@null"
                     android:text="Xóa"
                     android:textAllCaps="false"
-                    android:textColor="@color/primary" />
+                    android:textColor="@color/danger"
+                    android:textSize="12sp" />
             </LinearLayout>
 
-            <TextView style="@style/FormLabel" android:text="Màu lông / màu sắc" />
+            <TextView
+                style="@style/FormLabel"
+                android:text="Màu sắc / Họa tiết" />
+
             <EditText
                 android:id="@+id/etPetColor"
                 style="@style/FormEditText"
-                android:hint="Ví dụ: Trắng, vàng nâu"
-                android:inputType="textCapSentences"
-                android:maxLength="80" />
+                android:hint="Ví dụ: Vàng cam, Trắng xám, Đốm..."
+                android:inputType="text"
+                android:singleLine="true" />
 
-            <TextView style="@style/FormLabel" android:text="Cân nặng (kg)" />
+            <TextView
+                style="@style/FormLabel"
+                android:text="Cân nặng (kg)" />
+
             <EditText
                 android:id="@+id/etPetWeight"
                 style="@style/FormEditText"
                 android:hint="Ví dụ: 4.5"
                 android:inputType="numberDecimal"
-                android:maxLength="10" />
+                android:singleLine="true" />
 
-            <TextView style="@style/FormLabel" android:text="Mô tả / ghi chú" />
+            <TextView
+                style="@style/FormLabel"
+                android:text="Ghi chú / Mới nuôi" />
+
             <EditText
                 android:id="@+id/etPetDescription"
                 style="@style/FormEditText"
+                android:layout_height="80dp"
                 android:gravity="top|start"
-                android:hint="Tính cách, thói quen, lưu ý chăm sóc..."
-                android:inputType="textCapSentences|textMultiLine"
-                android:minLines="3"
-                android:maxLines="5" />
-        </LinearLayout>
-    </ScrollView>
+                android:hint="Mô tả tính cách, chế độ ăn..."
+                android:inputType="textMultiLine"
+                android:paddingTop="12dp" />
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingStart="18dp"
-        android:paddingTop="10dp"
-        android:paddingEnd="18dp"
-        android:paddingBottom="16dp">
-        <Button
-            android:id="@+id/btnCancelAddPet"
-            android:layout_width="0dp"
-            android:layout_height="52dp"
-            android:layout_weight="1"
-            android:layout_marginEnd="8dp"
-            android:background="@drawable/bg_secondary_button"
-            android:stateListAnimator="@null"
-            android:text="Hủy"
-            android:textAllCaps="false"
-            android:textColor="@color/primary"
-            android:textSize="15sp" />
-        <Button
-            android:id="@+id/btnSavePet"
-            android:layout_width="0dp"
-            android:layout_height="52dp"
-            android:layout_weight="1.4"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/bg_primary_button"
-            android:stateListAnimator="@null"
-            android:text="Lưu thú cưng"
-            android:textAllCaps="false"
-            android:textColor="@android:color/white"
-            android:textSize="15sp"
-            android:textStyle="bold" />
+            <!-- Actions -->
+            <Button
+                android:id="@+id/btnSavePet"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginTop="22dp"
+                android:background="@drawable/bg_primary_button"
+                android:stateListAnimator="@null"
+                android:text="Lưu thú cưng"
+                android:textAllCaps="false"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnCancelAddPet"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_secondary_button"
+                android:stateListAnimator="@null"
+                android:text="Hủy"
+                android:textAllCaps="false"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp" />
+
+        </LinearLayout>
     </LinearLayout>
-</LinearLayout>
+</ScrollView>

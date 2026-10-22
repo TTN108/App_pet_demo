@@ -8,19 +8,28 @@ import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 
 import com.example.apppet.model.Breed;
+import com.example.apppet.model.CareGuide;
+import com.example.apppet.model.Category;
+import com.example.apppet.model.Community;
+import com.example.apppet.model.ForumPost;
+import com.example.apppet.model.GalleryItem;
+import com.example.apppet.model.Membership;
+import com.example.apppet.model.Message;
 import com.example.apppet.model.Pet;
 import com.example.apppet.model.PetType;
+import com.example.apppet.model.User;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-/** SQLite cục bộ theo cấu trúc App Pet Demo phiên bản 2. */
+/** SQLite cục bộ hợp nhất cho App Pet Demo (gốc data package). */
 public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String DATABASE_NAME = "app_pet_demo_v2.db";
-    public static final int DATABASE_VERSION = 1;
+    public static final int DATABASE_VERSION = 2;
 
     public DatabaseHelper(Context context) {
         super(context.getApplicationContext(), DATABASE_NAME, null, DATABASE_VERSION);
@@ -194,44 +203,27 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "FOREIGN KEY (reporter_id) REFERENCES users(id)," +
                 "FOREIGN KEY (handled_by) REFERENCES users(id))");
 
-        db.execSQL("CREATE TABLE wiki_categories (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                "name TEXT NOT NULL," +
-                "description TEXT)");
-
-        db.execSQL("CREATE TABLE wiki_articles (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                "pet_type_id INTEGER," +
-                "breed_id INTEGER," +
-                "category_id INTEGER," +
-                "title TEXT NOT NULL," +
-                "summary TEXT," +
-                "content TEXT NOT NULL," +
-                "image_url TEXT," +
-                "source_type TEXT NOT NULL DEFAULT 'ORIGINAL'," +
-                "source_name TEXT," +
-                "source_url TEXT," +
-                "source_external_id TEXT," +
-                "content_hash TEXT," +
-                "crawled_at TEXT," +
-                "status TEXT NOT NULL DEFAULT 'DRAFT'," +
-                "created_at TEXT," +
-                "updated_at TEXT," +
-                "FOREIGN KEY (pet_type_id) REFERENCES pet_types(id)," +
-                "FOREIGN KEY (breed_id, pet_type_id) REFERENCES breeds(id, pet_type_id)," +
-                "FOREIGN KEY (category_id) REFERENCES wiki_categories(id)," +
-                "CHECK (source_type IN ('ORIGINAL','CRAWLED','API'))," +
-                "CHECK (source_type = 'ORIGINAL' OR source_url IS NOT NULL)," +
-                "UNIQUE (source_name, source_external_id))");
+        db.execSQL("CREATE TABLE categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
+        db.execSQL("CREATE TABLE care_guides (id INTEGER PRIMARY KEY AUTOINCREMENT, category_id INTEGER, title TEXT, subtitle TEXT, content TEXT)");
+        db.execSQL("CREATE TABLE forum_posts (id INTEGER PRIMARY KEY AUTOINCREMENT, category_id INTEGER, group_name TEXT, time_ago TEXT, content TEXT)");
+        db.execSQL("CREATE TABLE gallery_items (id INTEGER PRIMARY KEY AUTOINCREMENT, category_id INTEGER, image_uri TEXT, color_hex TEXT, is_download INTEGER)");
 
         seedDemoUser(db);
         seedPetTypesAndBreeds(db);
+        seedLegacyData(db);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        // Không xóa dữ liệu người dùng khi nâng cấp.
-        // Khi sửa cấu trúc DB, bổ sung migration tương ứng tại đây.
+        if (oldVersion < 2) {
+            try {
+                db.execSQL("CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
+                db.execSQL("CREATE TABLE IF NOT EXISTS care_guides (id INTEGER PRIMARY KEY AUTOINCREMENT, category_id INTEGER, title TEXT, subtitle TEXT, content TEXT)");
+                db.execSQL("CREATE TABLE IF NOT EXISTS forum_posts (id INTEGER PRIMARY KEY AUTOINCREMENT, category_id INTEGER, group_name TEXT, time_ago TEXT, content TEXT)");
+                db.execSQL("CREATE TABLE IF NOT EXISTS gallery_items (id INTEGER PRIMARY KEY AUTOINCREMENT, category_id INTEGER, image_uri TEXT, color_hex TEXT, is_download INTEGER)");
+                seedLegacyData(db);
+            } catch (Exception ignored) {}
+        }
     }
 
     private void seedDemoUser(SQLiteDatabase db) {
@@ -267,6 +259,63 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         addBreedIfMissing(db, "Cá", "Goldfish", "Cá vàng", "Đông Á");
         addBreedIfMissing(db, "Thỏ", "Netherland Dwarf", "Thỏ lùn Hà Lan", "Hà Lan");
         addBreedIfMissing(db, "Thỏ", "Lionhead", "Thỏ đầu sư tử", "Bỉ");
+    }
+
+    private void seedLegacyData(SQLiteDatabase db) {
+        addCategoryIfMissing(db, 1, "Mèo");
+        addCategoryIfMissing(db, 2, "Chó");
+        addCategoryIfMissing(db, 3, "Chim");
+        addCategoryIfMissing(db, 4, "Thỏ");
+        addCategoryIfMissing(db, 5, "Cá");
+
+        ContentValues g1 = new ContentValues();
+        g1.put("category_id", 1);
+        g1.put("title", "Cách tắm cho mèo đúng cách");
+        g1.put("subtitle", "Vệ sinh · 3 phút đọc");
+        g1.put("content", "Mèo rất sợ nước, hãy chuẩn bị nước ấm khoảng 38 độ C...");
+        db.insert("care_guides", null, g1);
+
+        ContentValues g2 = new ContentValues();
+        g2.put("category_id", 2);
+        g2.put("title", "Chế độ dinh dưỡng cho cún cún");
+        g2.put("subtitle", "Dinh dưỡng · 5 phút đọc");
+        g2.put("content", "Chó cần protein chất lượng cao...");
+        db.insert("care_guides", null, g2);
+
+        ContentValues f1 = new ContentValues();
+        f1.put("category_id", 1);
+        f1.put("group_name", "Hội yêu mèo");
+        f1.put("time_ago", "2 giờ trước");
+        f1.put("content", "Bé nhà mình mới đổi thức ăn, có ai gặp tình trạng biếng ăn không?");
+        db.insert("forum_posts", null, f1);
+
+        ContentValues f2 = new ContentValues();
+        f2.put("category_id", 2);
+        f2.put("group_name", "Hội yêu cún");
+        f2.put("time_ago", "1 giờ trước");
+        f2.put("content", "Kinh nghiệm huấn luyện chó Poodle đi vệ sinh đúng chỗ cực kỳ hiệu quả!");
+        db.insert("forum_posts", null, f2);
+
+        ContentValues gal1 = new ContentValues();
+        gal1.put("category_id", 1);
+        gal1.put("image_uri", "");
+        gal1.put("color_hex", "#E6F4EA");
+        gal1.put("is_download", 0);
+        db.insert("gallery_items", null, gal1);
+
+        ContentValues gal2 = new ContentValues();
+        gal2.put("category_id", 1);
+        gal2.put("image_uri", "");
+        gal2.put("color_hex", "#FEF7E0");
+        gal2.put("is_download", 0);
+        db.insert("gallery_items", null, gal2);
+    }
+
+    private void addCategoryIfMissing(SQLiteDatabase db, int id, String name) {
+        ContentValues v = new ContentValues();
+        v.put("id", id);
+        v.put("name", name);
+        db.insertWithOnConflict("categories", null, v, SQLiteDatabase.CONFLICT_IGNORE);
     }
 
     private void addTypeIfMissing(SQLiteDatabase db, String name, String description) {
@@ -306,15 +355,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         } finally {
             cursor.close();
         }
-    }
-
-    public long getDemoUserId() {
-        SQLiteDatabase db = getReadableDatabase();
-        long id = findId(db, "users", "username", "demo");
-        if (id != -1L) return id;
-        // Phòng trường hợp database được nhập từ nơi khác mà chưa có tài khoản demo.
-        seedDemoUser(getWritableDatabase());
-        return findId(getReadableDatabase(), "users", "username", "demo");
     }
 
     public List<PetType> getPetTypes() {
@@ -421,8 +461,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         }
     }
 
-
-    /** Cập nhật hồ sơ, đồng thời kiểm tra thú cưng thuộc đúng tài khoản hiện tại. */
     public boolean updatePetForUser(long petId, long userId, long petTypeId, Long breedId, String name,
                                     String gender, String birthDate, String color, Double weight, String description) {
         ContentValues values = new ContentValues();
@@ -443,7 +481,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         }
     }
 
-    /** Lưu ảnh avatar trong pet_images; image_uri trỏ tới file ảnh lưu riêng trong bộ nhớ ứng dụng. */
     public boolean savePetAvatarForUser(long petId, long userId, String imageUri) {
         if (imageUri == null || imageUri.trim().isEmpty()) return false;
         SQLiteDatabase db = getWritableDatabase();
@@ -484,12 +521,421 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         }
     }
 
-    private void putNullable(ContentValues values, String key, String value) {
-        if (value == null || value.trim().isEmpty()) values.putNull(key);
-        else values.put(key, value.trim());
+    // ===================== User Accounts =====================
+
+    public boolean usernameExists(String username) {
+        return findId(getReadableDatabase(), "users", "username", username.trim().toLowerCase(Locale.ROOT)) != -1L;
+    }
+
+    public boolean emailExists(String email) {
+        return findId(getReadableDatabase(), "users", "email", email.trim().toLowerCase(Locale.ROOT)) != -1L;
+    }
+
+    public long registerUser(String username, String email, String password, String displayName) {
+        String now = now();
+        String cleanUsername = username.trim().toLowerCase(Locale.ROOT);
+        ContentValues values = new ContentValues();
+        values.put("username", cleanUsername);
+        values.put("email", email.trim().toLowerCase(Locale.ROOT));
+        values.put("password_hash", PasswordHasher.hash(password));
+        values.put("display_name", displayName == null || displayName.trim().isEmpty()
+                ? cleanUsername : displayName.trim());
+        values.put("role", "USER");
+        values.put("created_at", now);
+        values.put("updated_at", now);
+        try {
+            return getWritableDatabase().insertOrThrow("users", null, values);
+        } catch (SQLiteException ex) {
+            return -1L;
+        }
+    }
+
+    public User authenticate(String login, String password) {
+        if (login == null || password == null) return null;
+        String key = login.trim().toLowerCase(Locale.ROOT);
+        Cursor cursor = getReadableDatabase().rawQuery(
+                "SELECT id, username, email, display_name, role, password_hash, avatar_uri FROM users " +
+                        "WHERE username = ? OR email = ? LIMIT 1", new String[]{key, key});
+        try {
+            if (!cursor.moveToFirst()) return null;
+            String storedHash = cursor.getString(5);
+            if (!PasswordHasher.verify(password, storedHash)) return null;
+            return readUser(cursor);
+        } finally {
+            cursor.close();
+        }
+    }
+
+    public User getUser(long userId) {
+        Cursor cursor = getReadableDatabase().rawQuery(
+                "SELECT id, username, email, display_name, role, password_hash, avatar_uri FROM users WHERE id = ? LIMIT 1",
+                new String[]{String.valueOf(userId)});
+        try {
+            return cursor.moveToFirst() ? readUser(cursor) : null;
+        } finally {
+            cursor.close();
+        }
+    }
+
+    private User readUser(Cursor cursor) {
+        String hash = cursor.getString(5);
+        boolean placeholder = hash == null || !hash.startsWith("pbkdf2$");
+        User user = new User(cursor.getLong(0), cursor.getString(1), cursor.getString(2),
+                cursor.getString(3), cursor.getString(4), placeholder);
+        user.avatarUri = cursor.getString(6);
+        return user;
+    }
+
+    public boolean updateUserAvatar(long userId, String avatarUri) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("avatar_uri", avatarUri);
+        return db.update("users", values, "id = ?", new String[]{String.valueOf(userId)}) > 0;
+    }
+
+    public boolean deletePet(long petId, long userId) {
+        SQLiteDatabase db = getWritableDatabase();
+        return db.delete("pets", "id = ? AND user_id = ?", new String[]{String.valueOf(petId), String.valueOf(userId)}) > 0;
+    }
+
+    // ===================== Legacy / Helper Methods for UI components =====================
+
+    public List<Category> getAllCategories() {
+        List<Category> list = new ArrayList<>();
+        Cursor cursor = getReadableDatabase().rawQuery("SELECT id, name FROM categories ORDER BY id ASC", null);
+        try {
+            while (cursor.moveToNext()) {
+                list.add(new Category(cursor.getInt(0), cursor.getString(1)));
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        if (list.isEmpty()) {
+            list.add(new Category(1, "Mèo"));
+            list.add(new Category(2, "Chó"));
+            list.add(new Category(3, "Chim"));
+            list.add(new Category(4, "Thỏ"));
+            list.add(new Category(5, "Cá"));
+        }
+        return list;
+    }
+
+    public List<Pet> getPetsByUserId(long userId) {
+        return getPetsForUser(userId);
+    }
+
+    public List<Pet> getPetsByUserId(int userId) {
+        return getPetsByUserId((long) userId);
+    }
+
+    public long addPet(long userId, String name, int categoryId, String breed, String imageUri) {
+        return addPet((int) userId, name, categoryId, breed, imageUri);
+    }
+
+    public long addPet(int userId, String name, int categoryId, String breed, String imageUri) {
+        long petTypeId = categoryId;
+        long petId = insertPet(userId, petTypeId, null, name, null, null, null, null, breed);
+        if (petId > 0 && imageUri != null && !imageUri.isEmpty()) {
+            savePetAvatarForUser(petId, userId, imageUri);
+        }
+        return petId;
+    }
+
+    public List<GalleryItem> getGalleryByCategory(int categoryId) {
+        List<GalleryItem> list = new ArrayList<>();
+        Cursor cursor = getReadableDatabase().rawQuery("SELECT id, category_id, image_uri, color_hex, is_download FROM gallery_items WHERE category_id = ?",
+                new String[]{String.valueOf(categoryId)});
+        try {
+            while (cursor.moveToNext()) {
+                list.add(new GalleryItem(
+                        cursor.getInt(0),
+                        cursor.getInt(1),
+                        cursor.getString(2),
+                        cursor.getString(3),
+                        cursor.getInt(4) == 1
+                ));
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+
+        if (list.isEmpty()) {
+            list.add(new GalleryItem(1, categoryId, "", "#E6F4EA", false));
+            list.add(new GalleryItem(2, categoryId, "", "#FEF7E0", false));
+            list.add(new GalleryItem(3, categoryId, "", "#FCE8E6", true));
+        }
+        return list;
+    }
+
+    public CareGuide getCareGuideByCategory(int categoryId) {
+        Cursor cursor = getReadableDatabase().rawQuery("SELECT id, title, subtitle, content FROM care_guides WHERE category_id = ? LIMIT 1",
+                new String[]{String.valueOf(categoryId)});
+        try {
+            if (cursor.moveToFirst()) {
+                return new CareGuide(cursor.getInt(0), categoryId, cursor.getString(1), cursor.getString(2), cursor.getString(3));
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return new CareGuide(1, categoryId, "Cách tắm cho pet đúng cách", "Vệ sinh · 3 phút đọc", "Hướng dẫn vệ sinh cơ bản...");
+    }
+
+    public ForumPost getForumPostByCategory(int categoryId) {
+        Cursor cursor = getReadableDatabase().rawQuery("SELECT id, group_name, time_ago, content FROM forum_posts WHERE category_id = ? LIMIT 1",
+                new String[]{String.valueOf(categoryId)});
+        try {
+            if (cursor.moveToFirst()) {
+                return new ForumPost(cursor.getInt(0), categoryId, cursor.getString(1), cursor.getString(2), cursor.getString(3));
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return new ForumPost(1, categoryId, "Hội trao đổi thú cưng", "Mới đây", "Bé nhà bạn hôm nay thế nào?");
+    }
+
+    public List<ForumPost> getForumsJoinedByUserId(long userId) {
+        return getForumsJoinedByUserId((int) userId);
+    }
+
+    public List<ForumPost> getForumsJoinedByUserId(int userId) {
+        List<ForumPost> list = new ArrayList<>();
+        Cursor cursor = getReadableDatabase().rawQuery("SELECT id, category_id, group_name, time_ago, content FROM forum_posts", null);
+        try {
+            while (cursor.moveToNext()) {
+                list.add(new ForumPost(
+                        cursor.getInt(0),
+                        cursor.getInt(1),
+                        cursor.getString(2),
+                        cursor.getString(3),
+                        cursor.getString(4)
+                ));
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        if (list.isEmpty()) {
+            list.add(new ForumPost(1, 1, "Hội yêu mèo", "Tham gia", "Cộng đồng những người yêu thích mèo"));
+        }
+        return list;
+    }
+
+    // ===================== Communities / Group Chat =====================
+
+    public void syncCommunityMemberships(long userId) {
+        SQLiteDatabase db = getWritableDatabase();
+        List<Long> typeIds = new ArrayList<>();
+        Cursor cursor = db.rawQuery("SELECT DISTINCT pet_type_id FROM pets WHERE user_id = ?",
+                new String[]{String.valueOf(userId)});
+        try {
+            while (cursor.moveToNext()) typeIds.add(cursor.getLong(0));
+        } finally {
+            cursor.close();
+        }
+
+        db.beginTransaction();
+        try {
+            for (long typeId : typeIds) {
+                long communityId = ensureCommunityForPetType(db, typeId);
+                if (communityId <= 0) continue;
+                ContentValues values = new ContentValues();
+                values.put("community_id", communityId);
+                values.put("user_id", userId);
+                values.put("role", "MEMBER");
+                values.put("status", "ACTIVE");
+                values.put("joined_at", now());
+                db.insertWithOnConflict("community_members", null, values, SQLiteDatabase.CONFLICT_IGNORE);
+            }
+            db.setTransactionSuccessful();
+        } finally {
+            db.endTransaction();
+        }
+    }
+
+    private long ensureCommunityForPetType(SQLiteDatabase db, long petTypeId) {
+        Cursor cursor = db.rawQuery("SELECT id FROM communities WHERE pet_type_id = ? ORDER BY id LIMIT 1",
+                new String[]{String.valueOf(petTypeId)});
+        try {
+            if (cursor.moveToFirst()) return cursor.getLong(0);
+        } finally {
+            cursor.close();
+        }
+
+        String typeName = null;
+        Cursor typeCursor = db.rawQuery("SELECT name FROM pet_types WHERE id = ? LIMIT 1",
+                new String[]{String.valueOf(petTypeId)});
+        try {
+            if (typeCursor.moveToFirst()) typeName = typeCursor.getString(0);
+        } finally {
+            typeCursor.close();
+        }
+        if (typeName == null) return -1L;
+
+        ContentValues values = new ContentValues();
+        values.put("pet_type_id", petTypeId);
+        values.put("name", "Cộng đồng " + typeName);
+        values.put("description", "Nơi những người nuôi " + typeName.toLowerCase(new Locale("vi"))
+                + " cùng trò chuyện và chia sẻ kinh nghiệm.");
+        values.put("created_at", now());
+        return db.insert("communities", null, values);
+    }
+
+    public List<Community> getCommunitiesForUser(long userId) {
+        syncCommunityMemberships(userId);
+        List<Community> items = new ArrayList<>();
+        Cursor cursor = getReadableDatabase().rawQuery(
+                "SELECT c.id, c.pet_type_id, c.name, c.description " +
+                        "FROM communities c " +
+                        "INNER JOIN community_members cm ON cm.community_id = c.id " +
+                        "WHERE cm.user_id = ? AND cm.status = 'ACTIVE' " +
+                        "ORDER BY c.id ASC",
+                new String[]{String.valueOf(userId)});
+        try {
+            while (cursor.moveToNext()) {
+                Community com = new Community();
+                com.id = cursor.getLong(0);
+                com.petTypeId = cursor.isNull(1) ? 0L : cursor.getLong(1);
+                com.name = cursor.getString(2);
+                com.description = cursor.getString(3);
+                items.add(com);
+            }
+        } finally {
+            cursor.close();
+        }
+        return items;
+    }
+
+    public Community getCommunity(long communityId) {
+        Cursor cursor = getReadableDatabase().rawQuery(
+                "SELECT id, pet_type_id, name, description FROM communities WHERE id = ? LIMIT 1",
+                new String[]{String.valueOf(communityId)});
+        try {
+            if (!cursor.moveToFirst()) return null;
+            Community com = new Community();
+            com.id = cursor.getLong(0);
+            com.petTypeId = cursor.isNull(1) ? 0L : cursor.getLong(1);
+            com.name = cursor.getString(2);
+            com.description = cursor.getString(3);
+            return com;
+        } finally {
+            cursor.close();
+        }
+    }
+
+    public Membership getMembership(long communityId, long userId) {
+        Cursor cursor = getReadableDatabase().rawQuery(
+                "SELECT role, status, muted_until " +
+                        "FROM community_members WHERE community_id = ? AND user_id = ? LIMIT 1",
+                new String[]{String.valueOf(communityId), String.valueOf(userId)});
+        try {
+            if (!cursor.moveToFirst()) return null;
+            return new Membership(
+                    cursor.getString(0),
+                    cursor.getString(1),
+                    cursor.getString(2)
+            );
+        } finally {
+            cursor.close();
+        }
+    }
+
+    public List<Message> getRecentMessages(long communityId, int limit) {
+        List<Message> items = new ArrayList<>();
+        Cursor cursor = getReadableDatabase().rawQuery(
+                "SELECT m.id, m.sender_id, m.content, m.created_at, " +
+                        "u.username, u.display_name " +
+                        "FROM messages m INNER JOIN users u ON u.id = m.sender_id " +
+                        "WHERE m.community_id = ? AND m.is_deleted = 0 " +
+                        "ORDER BY m.id DESC LIMIT ?",
+                new String[]{String.valueOf(communityId), String.valueOf(limit)});
+        try {
+            while (cursor.moveToNext()) {
+                Message msg = new Message();
+                msg.id = cursor.getLong(0);
+                msg.senderId = cursor.getLong(1);
+                msg.content = cursor.getString(2);
+                msg.createdAt = cursor.getString(3);
+                String uName = cursor.getString(4);
+                String dName = cursor.getString(5);
+                msg.senderName = dName != null && !dName.trim().isEmpty() ? dName : uName;
+                items.add(msg);
+            }
+        } finally {
+            cursor.close();
+        }
+        Collections.reverse(items);
+        return items;
+    }
+
+    public long insertMessage(long communityId, long senderId, String content) {
+        Message msg = insertMessage(communityId, senderId, content, null);
+        return msg != null ? msg.id : -1L;
+    }
+
+    public Message insertMessage(long communityId, long senderId, String content, String imageUri) {
+        if ((content == null || content.trim().isEmpty()) && (imageUri == null || imageUri.trim().isEmpty())) {
+            return null;
+        }
+        Membership m = getMembership(communityId, senderId);
+        if (m == null || !"ACTIVE".equals(m.status)) return null;
+
+        String now = now();
+        ContentValues values = new ContentValues();
+        values.put("community_id", communityId);
+        values.put("sender_id", senderId);
+        putNullable(values, "content", content);
+        putNullable(values, "image_uri", imageUri);
+        values.put("message_type", imageUri != null && !imageUri.trim().isEmpty() ? "IMAGE" : "TEXT");
+        values.put("created_at", now);
+
+        SQLiteDatabase db = getWritableDatabase();
+        long id = db.insert("messages", null, values);
+        if (id <= 0) return null;
+
+        Message msg = new Message();
+        msg.id = id;
+        msg.senderId = senderId;
+        msg.content = content;
+        msg.createdAt = now;
+        User sender = getUser(senderId);
+        msg.senderName = sender != null ? sender.getShownName() : "Thành viên";
+        return msg;
+    }
+
+    public boolean reportMessage(long messageId, long reporterId, String reason, String detail) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("message_id", messageId);
+        values.put("reporter_id", reporterId);
+        values.put("reason", reason);
+        putNullable(values, "detail", detail);
+        values.put("created_at", now());
+        try {
+            return db.insert("message_reports", null, values) > 0;
+        } catch (SQLiteException ex) {
+            return false;
+        }
+    }
+
+    public boolean deleteMessage(long messageId, long userId) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("is_deleted", 1);
+        values.put("deleted_at", now());
+        values.put("deleted_by", userId);
+        return db.update("messages", values, "id = ?", new String[]{String.valueOf(messageId)}) > 0;
     }
 
     public static String now() {
-        return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(new Date());
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date());
+    }
+
+    private static void putNullable(ContentValues values, String key, String val) {
+        if (val == null || val.trim().isEmpty()) values.putNull(key);
+        else values.put(key, val.trim());
     }
 }
