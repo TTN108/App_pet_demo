@@ -6,28 +6,29 @@ import android.os.Bundle;
 import android.widget.ListView;
 import android.widget.TextView;
 
-import com.example.apppet.data.DatabaseHelper;
+import com.example.apppet.data.AppExecutors;
 import com.example.apppet.data.SessionManager;
 import com.example.apppet.model.Community;
+import com.example.apppet.net.ChatRepository;
 import com.example.apppet.ui.CommunityAdapter;
+import com.example.apppet.ui.Errors;
 
 import java.util.List;
 
 public class CommunityListActivity extends Activity {
-    private DatabaseHelper databaseHelper;
+    private ChatRepository chat;
+    private int loadToken = 0;
     private CommunityAdapter adapter;
-    private long userId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        userId = SessionManager.getUserId(this);
-        if (userId <= 0) {
+        if (!SessionManager.isLoggedIn(this)) {
             finish();
             return;
         }
         setContentView(R.layout.activity_community_list);
-        databaseHelper = new DatabaseHelper(this);
+        chat = new ChatRepository(this);
 
         findViewById(R.id.btnBackCommunities).setOnClickListener(v -> finish());
 
@@ -47,10 +48,17 @@ public class CommunityListActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (databaseHelper == null) return;
-        // Đồng bộ lại trong trường hợp vừa thêm thú cưng thuộc loại mới.
-        databaseHelper.syncCommunityMemberships(userId);
-        List<Community> communities = databaseHelper.getCommunitiesForUser(userId);
-        adapter.setItems(communities);
+        if (chat == null) return;
+        // my_communities() tự cho người dùng vào nhóm của loài vừa thêm.
+        final int token = ++loadToken;
+        AppExecutors.runResult(() -> chat.myCommunities(), result -> {
+            if (isFinishing() || isDestroyed() || token != loadToken) return;
+            if (!result.isOk()) {
+                Errors.show(this, result);
+                return;
+            }
+            List<Community> communities = result.value;
+            adapter.setItems(communities);
+        });
     }
 }

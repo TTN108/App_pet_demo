@@ -1,7 +1,6 @@
 package com.example.apppet.adapters;
 
 import android.graphics.Color;
-import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.apppet.R;
 import com.example.apppet.model.Pet;
+import com.example.apppet.ui.ImageLoader;
 import com.example.apppet.ui.PetIcons;
 
 import java.util.List;
@@ -65,15 +65,9 @@ public class PetAdapter extends RecyclerView.Adapter<PetAdapter.PetViewHolder> {
             }
 
             if (pet.getImageUri() != null && !pet.getImageUri().trim().isEmpty()) {
-                try {
-                    holder.imgPetAvatar.setImageURI(Uri.parse(pet.getImageUri()));
-                    holder.imgPetAvatar.setVisibility(View.VISIBLE);
-                    holder.tvPetEmoji.setVisibility(View.GONE);
-                } catch (Exception e) {
-                    holder.imgPetAvatar.setVisibility(View.GONE);
-                    holder.tvPetEmoji.setVisibility(View.VISIBLE);
-                    holder.tvPetEmoji.setText(PetIcons.forType(pet.petTypeName));
-                }
+                ImageLoader.load(holder.imgPetAvatar, pet.getImageUri(), android.R.drawable.ic_menu_gallery);
+                holder.imgPetAvatar.setVisibility(View.VISIBLE);
+                holder.tvPetEmoji.setVisibility(View.GONE);
             } else {
                 holder.imgPetAvatar.setVisibility(View.GONE);
                 holder.tvPetEmoji.setVisibility(View.VISIBLE);
@@ -96,6 +90,7 @@ public class PetAdapter extends RecyclerView.Adapter<PetAdapter.PetViewHolder> {
             holder.containerAvatar.setBackgroundResource(R.drawable.bg_add_button);
             holder.tvPetEmoji.setVisibility(View.GONE);
             holder.imgPetAvatar.setVisibility(View.VISIBLE);
+            com.bumptech.glide.Glide.with(holder.imgPetAvatar.getContext()).clear(holder.imgPetAvatar);
             holder.imgPetAvatar.setImageResource(R.drawable.ic_plus);
 
             holder.itemView.setOnClickListener(v -> {

@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Tên diễn đàn (hiển thị trong app)",
+    "pet_type": "Chó",
+    "breed": null,
+    "category": "Sức khỏe",
+    "thread_urls": [
+      "https://example-forum.vn/threads/cach-cham-soc-cho-poodle.12345/"
+    ],
+    "selectors": {
+      "title": "h1",
+      "post": "article.message-body"
+    }
+  }
+]

@@ -1,3 +1,0 @@
-com.example.apppet.test
-style WhiteBackgroundDialogTheme
-style WhiteBackgroundTheme

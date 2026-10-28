@@ -1,12 +1,10 @@
 package com.example.apppet;
 
-import android.app.Activity;
 import android.app.DatePickerDialog;
-import android.content.Intent;
-import android.graphics.Bitmap;
+import android.content.ActivityNotFoundException;
+import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
-import android.provider.MediaStore;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.AdapterView;
@@ -18,27 +16,50 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.apppet.data.DatabaseHelper;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.PickVisualMediaRequest;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.FileProvider;
+
+import com.example.apppet.data.AppExecutors;
+import com.example.apppet.data.CatalogDatabase;
+import com.example.apppet.data.ImageStorage;
 import com.example.apppet.data.SessionManager;
 import com.example.apppet.model.Breed;
 import com.example.apppet.model.Pet;
 import com.example.apppet.model.PetType;
+import com.example.apppet.net.PetRepository;
+import com.example.apppet.ui.Errors;
+import com.example.apppet.ui.ImageLoader;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Locale;
 
-public class AddPetActivity extends Activity {
+public class AddPetActivity extends AppCompatActivity {
     public static final String EXTRA_PET_ID = "com.example.apppet.EDIT_PET_ID";
-    private static final int REQUEST_CAMERA = 2201;
-    private static final int REQUEST_GALLERY = 2203;
+    /** Điền sẵn từ màn Nhận diện (RecognizeActivity). */
+    public static final String EXTRA_PREFILL_TYPE_ID = "com.example.apppet.PREFILL_TYPE_ID";
+    public static final String EXTRA_PREFILL_BREED_ID = "com.example.apppet.PREFILL_BREED_ID";
+    public static final String EXTRA_PREFILL_IMAGE_URI = "com.example.apppet.PREFILL_IMAGE_URI";
+    public static final String EXTRA_RECOGNITION_ID = "com.example.apppet.RECOGNITION_ID";
 
-    private DatabaseHelper databaseHelper;
+    private static final String STATE_AVATAR = "state_avatar";
+    private static final String STATE_BIRTH = "state_birth";
+    private static final String STATE_BREED = "state_breed";
+    private static final String STATE_CAPTURE = "state_capture";
+    private static final String STATE_SESSION_FILES = "state_session_files";
+
+    private CatalogDatabase catalog;
+    private PetRepository pets;
+    private boolean saving = false;
+    private Button btnSaveRef;
     private EditText etName, etColor, etWeight, etDescription;
     private Spinner spPetType, spBreed, spGender;
     private TextView tvBirthDate, tvFormTitle, tvFormSubtitle;
@@ -46,33 +67,84 @@ public class AddPetActivity extends Activity {
     private String birthDate;
     private String avatarUri;
     private long editPetId = -1L;
-    private long userId;
+    private String userId;
     private Pet existingPet;
     private long pendingBreedId = 0L;
+    private long recognitionId = -1L;
+    private Uri captureUri;
+    private boolean savedOk = false;
+    /** File ảnh do màn này tạo ra, để dọn khi người dùng hủy hoặc đổi ảnh. */
+    private final Set<String> sessionFiles = new HashSet<>();
     private final List<PetType> petTypes = new ArrayList<>();
     private final List<Breed> breeds = new ArrayList<>();
+
+    private final ActivityResultLauncher<Uri> takePicture =
+            registerForActivityResult(new ActivityResultContracts.TakePicture(), ok -> {
+                if (Boolean.TRUE.equals(ok) && captureUri != null) importImage(captureUri);
+            });
+    private final ActivityResultLauncher<PickVisualMediaRequest> pickImage =
+            registerForActivityResult(new ActivityResultContracts.PickVisualMedia(), uri -> {
+                if (uri != null) importImage(uri);
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_pet);
 
-        databaseHelper = new DatabaseHelper(this);
+        catalog = CatalogDatabase.getInstance(this);
+        pets = new PetRepository(this);
         userId = SessionManager.getUserId(this);
         editPetId = getIntent().getLongExtra(EXTRA_PET_ID, -1L);
-        boolean editing = editPetId > 0;
+        final boolean editing = editPetId > 0;
         if (editing) {
-            existingPet = databaseHelper.getPetForUser(editPetId, userId);
-            if (existingPet == null) {
-                Toast.makeText(this, "Không tìm thấy thú cưng hoặc bạn không có quyền sửa.", Toast.LENGTH_LONG).show();
-                finish();
-                return;
-            }
-            pendingBreedId = existingPet.breedId == null ? 0L : existingPet.breedId;
-            birthDate = existingPet.birthDate;
-            avatarUri = existingPet.avatarUri;
+            // Hồ sơ nằm trên server: tải ở luồng nền rồi mới dựng form.
+            AppExecutors.runResult(() -> pets.getPet(editPetId), result -> {
+                if (isFinishing() || isDestroyed()) return;
+                if (!result.isOk()) {
+                    Errors.show(this, result);
+                    if (!isFinishing()) finish();
+                    return;
+                }
+                if (result.value == null) {
+                    Toast.makeText(this, "Không tìm thấy thú cưng hoặc bạn không có quyền sửa.", Toast.LENGTH_LONG).show();
+                    finish();
+                    return;
+                }
+                existingPet = result.value;
+                pendingBreedId = existingPet.breedId == null ? 0L : existingPet.breedId;
+                birthDate = existingPet.birthDate;
+                avatarUri = existingPet.avatarUri;
+                restoreState(savedInstanceState);
+                buildForm(savedInstanceState, true);
+            });
+            return;
         }
+        long prefillBreed = getIntent().getLongExtra(EXTRA_PREFILL_BREED_ID, 0L);
+        if (prefillBreed > 0) pendingBreedId = prefillBreed;
+        recognitionId = getIntent().getLongExtra(EXTRA_RECOGNITION_ID, -1L);
+        String prefillImage = getIntent().getStringExtra(EXTRA_PREFILL_IMAGE_URI);
+        if (!TextUtils.isEmpty(prefillImage)) {
+            avatarUri = prefillImage;
+            sessionFiles.add(prefillImage);
+        }
+        restoreState(savedInstanceState);
+        buildForm(savedInstanceState, false);
+    }
 
+    /** Khôi phục trạng thái khi xoay màn hình / bị hệ thống kill lúc đang ở app camera. */
+    private void restoreState(Bundle savedInstanceState) {
+        if (savedInstanceState == null) return;
+        avatarUri = savedInstanceState.getString(STATE_AVATAR, avatarUri);
+        birthDate = savedInstanceState.getString(STATE_BIRTH, birthDate);
+        pendingBreedId = savedInstanceState.getLong(STATE_BREED, pendingBreedId);
+        String cap = savedInstanceState.getString(STATE_CAPTURE);
+        if (cap != null) captureUri = Uri.parse(cap);
+        List<String> files = savedInstanceState.getStringArrayList(STATE_SESSION_FILES);
+        if (files != null) sessionFiles.addAll(files);
+    }
+
+    private void buildForm(Bundle savedInstanceState, boolean editing) {
         etName = findViewById(R.id.etPetName);
         etColor = findViewById(R.id.etPetColor);
         etWeight = findViewById(R.id.etPetWeight);
@@ -85,6 +157,7 @@ public class AddPetActivity extends Activity {
         tvFormTitle = findViewById(R.id.tvAddPetTitle);
         tvFormSubtitle = findViewById(R.id.tvAddPetSubtitle);
         Button btnSave = findViewById(R.id.btnSavePet);
+        btnSaveRef = btnSave;
         Button btnCancel = findViewById(R.id.btnCancelAddPet);
         Button btnClearDate = findViewById(R.id.btnClearBirthDate);
         Button btnTakeAvatar = findViewById(R.id.btnTakePetAvatar);
@@ -112,16 +185,18 @@ public class AddPetActivity extends Activity {
         spGender.setAdapter(genderAdapter);
 
         if (editing) populateForm(existingPet);
+        else if (!TextUtils.isEmpty(birthDate)) tvBirthDate.setText(birthDate);
 
-        petTypes.addAll(databaseHelper.getPetTypes());
+        petTypes.addAll(catalog.getPetTypes());
         ArrayAdapter<PetType> typeAdapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_spinner_item, petTypes);
         typeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spPetType.setAdapter(typeAdapter);
 
-        if (editing) {
+        long wantedTypeId = editing ? existingPet.petTypeId : getIntent().getLongExtra(EXTRA_PREFILL_TYPE_ID, 0L);
+        if (wantedTypeId > 0 && savedInstanceState == null) {
             for (int i = 0; i < petTypes.size(); i++) {
-                if (petTypes.get(i).id == existingPet.petTypeId) {
+                if (petTypes.get(i).id == wantedTypeId) {
                     spPetType.setSelection(i);
                     break;
                 }
@@ -166,7 +241,7 @@ public class AddPetActivity extends Activity {
     private void loadBreeds(PetType type) {
         breeds.clear();
         breeds.add(new Breed(0L, type.id, "Chưa rõ / Lai", null));
-        breeds.addAll(databaseHelper.getBreedsByPetType(type.id));
+        breeds.addAll(catalog.getBreedsByPetType(type.id));
         ArrayAdapter<Breed> breedAdapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_spinner_item, breeds);
         breedAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -203,90 +278,77 @@ public class AddPetActivity extends Activity {
     }
 
     private void openCamera() {
-        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        if (intent.resolveActivity(getPackageManager()) == null) {
-            Toast.makeText(this, "Thiết bị không tìm thấy ứng dụng chụp ảnh.", Toast.LENGTH_LONG).show();
+        File dir = new File(getCacheDir(), "capture");
+        if (!dir.exists() && !dir.mkdirs()) {
+            Toast.makeText(this, "Không tạo được thư mục ảnh tạm.", Toast.LENGTH_LONG).show();
             return;
         }
-        startActivityForResult(intent, REQUEST_CAMERA);
+        captureUri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", new File(dir, "avatar.jpg"));
+        try {
+            takePicture.launch(captureUri);
+        } catch (ActivityNotFoundException ex) {
+            Toast.makeText(this, "Thiết bị không tìm thấy ứng dụng chụp ảnh.", Toast.LENGTH_LONG).show();
+        }
     }
 
     private void openGallery() {
-        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-        startActivityForResult(intent, REQUEST_GALLERY);
+        pickImage.launch(new PickVisualMediaRequest.Builder()
+                .setMediaType(ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE).build());
+    }
+
+    /** Thu nhỏ, xoay đúng chiều và lưu ảnh vào bộ nhớ trong ở luồng nền. */
+    private void importImage(Uri uri) {
+        final Context app = getApplicationContext();
+        AppExecutors.run(() -> {
+            try {
+                return ImageStorage.copyToAppStorage(app, uri, "pet_avatars");
+            } catch (IOException ex) {
+                return null;
+            }
+        }, result -> {
+            if (isFinishing() || isDestroyed()) {
+                if (result != null) ImageStorage.deleteIfOwned(app, result);
+                return;
+            }
+            if (result == null) {
+                Toast.makeText(this, "Không đọc được ảnh. Vui lòng thử ảnh khác.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            setAvatar(result);
+            Toast.makeText(this, "Đã chọn ảnh. Nhấn lưu để cập nhật hồ sơ.", Toast.LENGTH_SHORT).show();
+        });
+    }
+
+    private void setAvatar(String newUri) {
+        if (avatarUri != null && sessionFiles.remove(avatarUri)) {
+            ImageStorage.deleteIfOwned(this, avatarUri);        // bỏ ảnh tạm mà người dùng vừa thay
+        }
+        avatarUri = newUri;
+        sessionFiles.add(newUri);
+        showCurrentAvatar();
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode != RESULT_OK) return;
-
-        if (requestCode == REQUEST_GALLERY && data != null && data.getData() != null) {
-            Uri imageUri = data.getData();
-            avatarUri = saveImageToInternalStorage(imageUri);
-            showCurrentAvatar();
-            Toast.makeText(this, "Đã chọn ảnh từ thư viện. Nhấn lưu để cập nhật hồ sơ.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (requestCode == REQUEST_CAMERA && data != null && data.getExtras() != null) {
-            Object result = data.getExtras().get("data");
-            if (!(result instanceof Bitmap)) {
-                Toast.makeText(this, "Không nhận được ảnh từ camera. Vui lòng thử lại.", Toast.LENGTH_LONG).show();
-                return;
-            }
-            Bitmap bitmap = (Bitmap) result;
-            FileOutputStream output = null;
-            try {
-                File directory = new File(getFilesDir(), "pet_avatars");
-                if (!directory.exists() && !directory.mkdirs()) throw new IOException("Không tạo được thư mục ảnh");
-                File photoFile = new File(directory, "pet_avatar_" + System.currentTimeMillis() + ".jpg");
-                output = new FileOutputStream(photoFile);
-                if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 90, output)) throw new IOException("Không ghi được ảnh");
-                output.flush();
-                avatarUri = Uri.fromFile(photoFile).toString();
-                showCurrentAvatar();
-                Toast.makeText(this, "Đã chụp ảnh avatar. Nhấn lưu để cập nhật hồ sơ.", Toast.LENGTH_SHORT).show();
-            } catch (Exception ex) {
-                Toast.makeText(this, "Không thể lưu ảnh: " + ex.getMessage(), Toast.LENGTH_LONG).show();
-            } finally {
-                if (output != null) {
-                    try { output.close(); } catch (Exception ignored) { }
-                }
-            }
-        }
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(STATE_AVATAR, avatarUri);
+        outState.putString(STATE_BIRTH, birthDate);
+        int bp = spBreed != null ? spBreed.getSelectedItemPosition() : -1;
+        outState.putLong(STATE_BREED, bp >= 0 && bp < breeds.size() ? breeds.get(bp).id : pendingBreedId);
+        if (captureUri != null) outState.putString(STATE_CAPTURE, captureUri.toString());
+        outState.putStringArrayList(STATE_SESSION_FILES, new ArrayList<>(sessionFiles));
     }
 
-    private String saveImageToInternalStorage(Uri uri) {
-        try {
-            InputStream inputStream = getContentResolver().openInputStream(uri);
-            if (inputStream == null) return uri.toString();
-
-            File file = new File(getFilesDir(), "pet_avatar_" + System.currentTimeMillis() + ".jpg");
-            FileOutputStream outputStream = new FileOutputStream(file);
-            byte[] buffer = new byte[1024];
-            int read;
-            while ((read = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, read);
-            }
-            outputStream.flush();
-            outputStream.close();
-            inputStream.close();
-            return Uri.fromFile(file).toString();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return uri.toString();
+    @Override
+    protected void onDestroy() {
+        if (isFinishing()) {
+            for (String f : sessionFiles) ImageStorage.deleteIfOwned(this, f);   // hủy form -> dọn ảnh tạm
         }
+        super.onDestroy();
     }
 
     private void showCurrentAvatar() {
-        if (!TextUtils.isEmpty(avatarUri)) {
-            try {
-                ivAvatar.setImageURI(Uri.parse(avatarUri));
-            } catch (Exception ignored) { }
-        } else {
-            ivAvatar.setImageResource(android.R.drawable.ic_menu_camera);
-        }
+        ImageLoader.load(ivAvatar, avatarUri, android.R.drawable.ic_menu_camera);
     }
 
     private void savePet() {
@@ -329,36 +391,69 @@ public class AddPetActivity extends Activity {
             }
         }
 
-        String color = etColor.getText().toString().trim();
-        String description = etDescription.getText().toString().trim();
-        long savedPetId;
-        boolean saved;
-        if (editPetId > 0) {
-            saved = databaseHelper.updatePetForUser(editPetId, userId, type.id, breedId, name, gender,
-                    birthDate, color, weight, description);
-            savedPetId = editPetId;
-        } else {
-            savedPetId = databaseHelper.insertPet(userId, type.id, breedId, name, gender,
-                    birthDate, color, weight, description);
-            saved = savedPetId > 0;
-        }
+        final String color = etColor.getText().toString().trim();
+        final String description = etDescription.getText().toString().trim();
+        final boolean editingNow = editPetId > 0;
+        final Long finalBreedId = breedId;
+        final String finalGender = gender;
+        final Double finalWeight = weight;
+        final String finalName = name;
+        final long finalTypeId = type.id;
+        final String finalBirth = birthDate;
+        // Chỉ ảnh mới chọn (file nội bộ) mới cần tải lên; ảnh cũ đã là URL trên server.
+        final String localAvatar = !TextUtils.isEmpty(avatarUri) && avatarUri.startsWith("file:") ? avatarUri : null;
+        if (saving) return;
+        saving = true;
+        btnSaveRef.setEnabled(false);
 
-        if (!saved) {
-            Toast.makeText(this, editPetId > 0 ? "Không cập nhật được thông tin thú cưng." :
-                    "Không lưu được thú cưng. Hãy kiểm tra lại dữ liệu.", Toast.LENGTH_LONG).show();
-            return;
-        }
-        if (!TextUtils.isEmpty(avatarUri)) {
-            boolean photoSaved = databaseHelper.savePetAvatarForUser(savedPetId, userId, avatarUri);
-            if (!photoSaved) {
-                Toast.makeText(this, "Đã lưu hồ sơ nhưng chưa lưu được ảnh avatar vào database.", Toast.LENGTH_LONG).show();
-                setResult(RESULT_OK);
-                finish();
+        // Kết quả: 0 = xong, 1 = lưu hồ sơ được nhưng ảnh lỗi, 2 = không cập nhật được (không còn quyền/không tồn tại)
+        AppExecutors.runResult(() -> {
+            long petId;
+            if (editingNow) {
+                if (!pets.updatePet(editPetId, finalTypeId, finalBreedId, finalName, finalGender, finalBirth,
+                        color, finalWeight, description)) {
+                    return 2;
+                }
+                petId = editPetId;
+            } else {
+                petId = pets.insertPet(finalTypeId, finalBreedId, finalName, finalGender, finalBirth,
+                        color, finalWeight, description);
+            }
+            if (localAvatar != null) {
+                try {
+                    Object[] uploaded = pets.setMainImage(userId, petId, new File(Uri.parse(localAvatar).getPath()));
+                    try {
+                        pets.linkRecognition(recognitionId, (Long) uploaded[0]);
+                    } catch (RuntimeException ignored) {
+                        // gắn kết quả nhận diện chỉ là thông tin phụ, không làm hỏng việc lưu thú cưng
+                    }
+                } catch (RuntimeException ex) {
+                    return 1;
+                }
+            }
+            return 0;
+        }, result -> {
+            saving = false;
+            btnSaveRef.setEnabled(true);
+            if (isFinishing() || isDestroyed()) return;
+            if (!result.isOk()) {
+                Errors.show(this, result);
                 return;
             }
-        }
-        Toast.makeText(this, editPetId > 0 ? "Đã cập nhật thông tin thú cưng" : "Đã thêm thú cưng thành công", Toast.LENGTH_SHORT).show();
-        setResult(RESULT_OK);
-        finish();
+            int code = result.value;
+            if (code == 2) {
+                Toast.makeText(this, "Không cập nhật được thông tin thú cưng.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            savedOk = true;
+            if (code == 1) {
+                Toast.makeText(this, "Đã lưu hồ sơ nhưng chưa tải được ảnh. Bạn có thể thêm ảnh lại trong phần sửa.", Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(this, editingNow ? "Đã cập nhật thông tin thú cưng" : "Đã thêm thú cưng thành công",
+                        Toast.LENGTH_SHORT).show();
+            }
+            setResult(RESULT_OK);
+            finish();
+        });
     }
 }

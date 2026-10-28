@@ -17,8 +17,8 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.apppet.data.DatabaseHelper;
-import com.example.apppet.data.SessionManager;
+import com.example.apppet.data.AppExecutors;
+import com.example.apppet.net.UserRepository;
 
 import java.util.regex.Pattern;
 
@@ -30,7 +30,8 @@ public class RegisterActivity extends Activity {
     private CheckBox cbTerms;
     private Button btnRegister;
 
-    private DatabaseHelper databaseHelper;
+    private UserRepository users;
+    private boolean registering = false;
     private boolean isPasswordVisible = false;
     private boolean isConfirmPasswordVisible = false;
 
@@ -46,7 +47,7 @@ public class RegisterActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
 
-        databaseHelper = new DatabaseHelper(this);
+        users = new UserRepository(this);
 
         initViews();
         setupListeners();
@@ -145,7 +146,7 @@ public class RegisterActivity extends Activity {
 
     private boolean isPasswordValid(String password) {
         if (TextUtils.isEmpty(password)) return false;
-        if (password.length() < 8 || password.length() > 20) return false;
+        if (password.length() < 8 || password.length() > 72) return false;
         if (!uppercasePattern.matcher(password).find()) return false;
         if (!lowercasePattern.matcher(password).find()) return false;
         if (!digitPattern.matcher(password).find()) return false;
@@ -178,7 +179,7 @@ public class RegisterActivity extends Activity {
         }
 
         if (!isPasswordValid(password)) {
-            Toast.makeText(this, "Mật khẩu không đạt yêu cầu! Cần từ 8-20 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Mật khẩu không đạt yêu cầu! Cần từ 8-72 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.", Toast.LENGTH_LONG).show();
             edtPassword.requestFocus();
             return;
         }
@@ -194,28 +195,31 @@ public class RegisterActivity extends Activity {
             return;
         }
 
-        if (databaseHelper.usernameExists(username)) {
-            Toast.makeText(this, "Tên đăng nhập này đã được sử dụng!", Toast.LENGTH_SHORT).show();
-            edtUsername.requestFocus();
-            return;
-        }
-
-        if (databaseHelper.emailExists(email)) {
-            Toast.makeText(this, "Email này đã được đăng ký tài khoản!", Toast.LENGTH_SHORT).show();
-            edtEmail.requestFocus();
-            return;
-        }
-
-        long userId = databaseHelper.registerUser(username, email, password, fullName);
-        if (userId > 0) {
-            SessionManager.setUserId(this, userId);
-            Toast.makeText(this, "Đăng ký tài khoản thành công!", Toast.LENGTH_SHORT).show();
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
-        } else {
-            Toast.makeText(this, "Có lỗi xảy ra khi tạo tài khoản, vui lòng thử lại!", Toast.LENGTH_SHORT).show();
-        }
+        if (registering) return;
+        registering = true;
+        AppExecutors.runResult(() -> {
+            if (!users.usernameAvailable(username)) return null;       // null = tên đăng nhập đã có người dùng
+            return users.signUp(username, email, password, fullName);
+        }, result -> {
+            registering = false;
+            if (isFinishing() || isDestroyed()) return;
+            if (!result.isOk()) {
+                Toast.makeText(this, result.message(), Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (result.value == null) {
+                Toast.makeText(this, "Tên đăng nhập này đã được sử dụng!", Toast.LENGTH_SHORT).show();
+                edtUsername.requestFocus();
+            } else if (result.value.signedIn) {
+                Toast.makeText(this, "Đăng ký tài khoản thành công!", Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(this, MainActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(intent);
+                finish();
+            } else {
+                Toast.makeText(this, result.value.message, Toast.LENGTH_LONG).show();
+                finish();                                              // quay lại màn đăng nhập, chờ xác nhận email
+            }
+        });
     }
 }

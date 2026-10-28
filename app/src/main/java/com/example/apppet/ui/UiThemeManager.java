@@ -6,15 +6,16 @@ import android.view.View;
 
 import com.example.apppet.data.SessionManager;
 
-public class UiThemeManager {
-    public static void applyTheme(View view, Context context) {
-        if (view == null || context == null) return;
+/** Áp màu nền người dùng đã chọn (lưu trong SessionManager) lên màn hình. */
+public final class UiThemeManager {
+    private UiThemeManager() { }
+
+    public static void applyTheme(View root, Context context) {
+        if (root == null || context == null) return;
         try {
-            String bgColor = SessionManager.getBgColor(context);
-            if (bgColor != null && !bgColor.trim().isEmpty()) {
-                view.setBackgroundColor(Color.parseColor(bgColor));
-            }
-        } catch (Exception ignored) {
+            root.setBackgroundColor(Color.parseColor(SessionManager.getBgColor(context)));
+        } catch (IllegalArgumentException ex) {
+            root.setBackgroundColor(Color.parseColor(SessionManager.DEFAULT_BG_COLOR));
         }
     }
 }

@@ -7,14 +7,16 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import com.example.apppet.data.DatabaseHelper;
+import com.example.apppet.data.AppExecutors;
 import com.example.apppet.data.SessionManager;
-import com.example.apppet.model.User;
+import com.example.apppet.net.UserRepository;
 
 public class LoginActivity extends Activity {
-    private DatabaseHelper databaseHelper;
+    private UserRepository users;
     private EditText etLogin, etPassword;
     private TextView tvError;
+    private View btnLogin;
+    private boolean busy = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -24,13 +26,14 @@ public class LoginActivity extends Activity {
             return;
         }
         setContentView(R.layout.activity_login);
-        databaseHelper = new DatabaseHelper(this);
+        users = new UserRepository(this);
 
         etLogin = findViewById(R.id.etLogin);
         etPassword = findViewById(R.id.etPassword);
         tvError = findViewById(R.id.tvLoginError);
 
-        findViewById(R.id.btnLogin).setOnClickListener(v -> attemptLogin());
+        btnLogin = findViewById(R.id.btnLogin);
+        btnLogin.setOnClickListener(v -> attemptLogin());
         findViewById(R.id.tvGoRegister).setOnClickListener(v ->
                 startActivity(new Intent(LoginActivity.this, RegisterActivity.class)));
         etPassword.setOnEditorActionListener((v, actionId, event) -> {
@@ -40,19 +43,26 @@ public class LoginActivity extends Activity {
     }
 
     private void attemptLogin() {
-        String login = etLogin.getText().toString().trim();
-        String password = etPassword.getText().toString();
+        final String login = etLogin.getText().toString().trim();
+        final String password = etPassword.getText().toString();
         if (login.isEmpty() || password.isEmpty()) {
             showError("Vui lòng nhập tên đăng nhập/email và mật khẩu.");
             return;
         }
-        User user = databaseHelper.authenticate(login, password);
-        if (user == null) {
-            showError("Tên đăng nhập/email hoặc mật khẩu không đúng.");
-            return;
-        }
-        SessionManager.setUserId(this, user.id);
-        openMain();
+        if (busy) return;
+        busy = true;
+        btnLogin.setEnabled(false);
+        tvError.setVisibility(View.GONE);
+        AppExecutors.runResult(() -> users.signIn(login, password), result -> {
+            busy = false;
+            if (isFinishing() || isDestroyed()) return;
+            btnLogin.setEnabled(true);
+            if (!result.isOk()) {
+                showError(result.message());
+                return;
+            }
+            openMain();
+        });
     }
 
     private void showError(String message) {

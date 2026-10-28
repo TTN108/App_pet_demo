@@ -3,145 +3,87 @@ package com.example.apppet.data;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-import com.example.apppet.model.User;
+import com.example.apppet.net.AuthSession;
 
 /**
- * Quản lý phiên đăng nhập và cài đặt giao diện trong SharedPreferences.
- * Hỗ trợ cả truy cập Instance và truy cập Static.
+ * Lưu phiên đăng nhập (token Supabase) và cài đặt giao diện trong SharedPreferences riêng của app
+ * (allowBackup=false nên không bị sao lưu lên Google). Không gọi mạng/DB nên dùng được ở luồng UI.
  */
 public class SessionManager {
     private static final String PREFS = "app_pet_session";
-    private static final String KEY_USER_ID = "user_id";
-    private static final String KEY_USERNAME = "username";
+    private static final String KEY_USER_ID = "user_id_v2";
+    private static final String KEY_ACCESS = "access_token";
+    private static final String KEY_REFRESH = "refresh_token";
+    private static final String KEY_EXPIRES = "expires_at";
     private static final String KEY_EMAIL = "email";
-    private static final String KEY_DISPLAY_NAME = "displayName";
-    private static final String KEY_AVATAR_URI = "avatarUri";
-    private static final String KEY_CREATED_AT = "createdAt";
-
+    private static final String KEY_NAME = "display_name";
+    private static final String KEY_AVATAR = "avatar_url";
     private static final String KEY_BG_COLOR = "bgColor";
     private static final String KEY_CARD_COLOR = "cardColor";
 
     public static final String DEFAULT_BG_COLOR = "#F4F7FC";
     public static final String DEFAULT_CARD_COLOR = "#FFFFFF";
 
-    private final SharedPreferences pref;
-    private final SharedPreferences.Editor editor;
-    private final Context context;
+    private SessionManager() { }
 
-    public SessionManager(Context context) {
-        this.context = context.getApplicationContext();
-        this.pref = this.context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        this.editor = pref.edit();
+    private static SharedPreferences prefs(Context c) {
+        return c.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    // --- Instance Methods ---
+    // ---------------- phiên đăng nhập ----------------
 
-    public void createLoginSession(int userId, String username, String email, String displayName, String avatarUri, String createdAt) {
-        editor.putLong(KEY_USER_ID, userId);
-        editor.putString(KEY_USERNAME, username);
-        editor.putString(KEY_EMAIL, email);
-        editor.putString(KEY_DISPLAY_NAME, displayName);
-        editor.putString(KEY_AVATAR_URI, avatarUri);
-        editor.putString(KEY_CREATED_AT, createdAt);
-        editor.apply();
+    public static boolean isLoggedIn(Context c) {
+        SharedPreferences p = prefs(c);
+        return !p.getString(KEY_USER_ID, "").isEmpty() && !p.getString(KEY_REFRESH, "").isEmpty();
     }
 
-    public boolean isLoggedIn() {
-        return isLoggedIn(context);
+    /** Id người dùng (uuid) hoặc chuỗi rỗng nếu chưa đăng nhập. */
+    public static String getUserId(Context c) {
+        return prefs(c).getString(KEY_USER_ID, "");
     }
 
-    public int getUserId() {
-        return (int) getUserId(context);
+    public static AuthSession loadSession(Context c) {
+        SharedPreferences p = prefs(c);
+        String uid = p.getString(KEY_USER_ID, "");
+        String refresh = p.getString(KEY_REFRESH, "");
+        if (uid.isEmpty() || refresh.isEmpty()) return null;
+        return new AuthSession(uid, p.getString(KEY_ACCESS, ""), refresh, p.getLong(KEY_EXPIRES, 0L));
     }
 
-    public String getUsername() {
-        return pref.getString(KEY_USERNAME, "");
+    public static void saveSession(Context c, AuthSession s, String email) {
+        SharedPreferences.Editor e = prefs(c).edit()
+                .putString(KEY_USER_ID, s.userId)
+                .putString(KEY_ACCESS, s.accessToken)
+                .putString(KEY_REFRESH, s.refreshToken)
+                .putLong(KEY_EXPIRES, s.expiresAtSec);
+        if (email != null) e.putString(KEY_EMAIL, email);
+        e.apply();
     }
 
-    public String getEmail() {
-        return pref.getString(KEY_EMAIL, "");
+    public static void cacheProfile(Context c, String displayName, String avatarUrl) {
+        prefs(c).edit().putString(KEY_NAME, displayName == null ? "" : displayName)
+                .putString(KEY_AVATAR, avatarUrl == null ? "" : avatarUrl).apply();
     }
 
-    public String getDisplayName() {
-        return pref.getString(KEY_DISPLAY_NAME, "Người dùng");
+    public static String getEmail(Context c) { return prefs(c).getString(KEY_EMAIL, ""); }
+
+    public static String getDisplayName(Context c) { return prefs(c).getString(KEY_NAME, ""); }
+
+    public static String getAvatarUrl(Context c) { return prefs(c).getString(KEY_AVATAR, ""); }
+
+    /** Đăng xuất cục bộ: xóa token và thông tin tài khoản, GIỮ lại màu giao diện đã chọn. */
+    public static void clear(Context c) {
+        prefs(c).edit().remove(KEY_USER_ID).remove(KEY_ACCESS).remove(KEY_REFRESH).remove(KEY_EXPIRES)
+                .remove(KEY_EMAIL).remove(KEY_NAME).remove(KEY_AVATAR).apply();
     }
 
-    public String getAvatarUri() {
-        return pref.getString(KEY_AVATAR_URI, "");
+    // ---------------- giao diện ----------------
+
+    public static void setThemeColors(Context c, String bgColor, String cardColor) {
+        prefs(c).edit().putString(KEY_BG_COLOR, bgColor).putString(KEY_CARD_COLOR, cardColor).apply();
     }
 
-    public String getCreatedAt() {
-        return pref.getString(KEY_CREATED_AT, "");
-    }
+    public static String getBgColor(Context c) { return prefs(c).getString(KEY_BG_COLOR, DEFAULT_BG_COLOR); }
 
-    public void updateAvatarUri(String avatarUri) {
-        editor.putString(KEY_AVATAR_URI, avatarUri).apply();
-    }
-
-    public void updateDisplayName(String displayName) {
-        editor.putString(KEY_DISPLAY_NAME, displayName).apply();
-    }
-
-    public void setThemeColors(String bgColor, String cardColor) {
-        editor.putString(KEY_BG_COLOR, bgColor);
-        editor.putString(KEY_CARD_COLOR, cardColor);
-        editor.apply();
-    }
-
-    public String getBgColor() {
-        return pref.getString(KEY_BG_COLOR, DEFAULT_BG_COLOR);
-    }
-
-    public String getCardColor() {
-        return pref.getString(KEY_CARD_COLOR, DEFAULT_CARD_COLOR);
-    }
-
-    public void logoutUser() {
-        clear(context);
-    }
-
-    // --- Static Methods ---
-
-    public static long getUserId(Context context) {
-        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        return prefs.getLong(KEY_USER_ID, -1L);
-    }
-
-    public static boolean isLoggedIn(Context context) {
-        long id = getUserId(context);
-        if (id <= 0) return false;
-        User user = new DatabaseHelper(context).getUser(id);
-        if (user == null || user.placeholderAccount) {
-            clear(context);
-            return false;
-        }
-        return true;
-    }
-
-    public static void setUserId(Context context, long userId) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .edit().putLong(KEY_USER_ID, userId).apply();
-    }
-
-    public static void setThemeColors(Context context, String bgColor, String cardColor) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .edit()
-                .putString(KEY_BG_COLOR, bgColor)
-                .putString(KEY_CARD_COLOR, cardColor)
-                .apply();
-    }
-
-    public static String getBgColor(Context context) {
-        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .getString(KEY_BG_COLOR, DEFAULT_BG_COLOR);
-    }
-
-    public static String getCardColor(Context context) {
-        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .getString(KEY_CARD_COLOR, DEFAULT_CARD_COLOR);
-    }
-
-    public static void clear(Context context) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply();
-    }
+    public static String getCardColor(Context c) { return prefs(c).getString(KEY_CARD_COLOR, DEFAULT_CARD_COLOR); }
 }

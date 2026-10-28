@@ -3,16 +3,17 @@ package com.example.apppet;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.apppet.data.DatabaseHelper;
-import com.example.apppet.data.SessionManager;
+import com.example.apppet.data.AppExecutors;
 import com.example.apppet.model.Pet;
+import com.example.apppet.net.PetRepository;
+import com.example.apppet.ui.Errors;
+import com.example.apppet.ui.ImageLoader;
 
 import java.util.Locale;
 
@@ -20,16 +21,15 @@ public class PetDetailActivity extends Activity {
     public static final String EXTRA_PET_ID = "com.example.apppet.PET_ID";
     private static final int REQUEST_EDIT_PET = 2202;
     private long petId;
-    private long userId;
-    private DatabaseHelper databaseHelper;
+    private PetRepository pets;
+    private int loadToken = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_pet_detail);
         petId = getIntent().getLongExtra(EXTRA_PET_ID, -1L);
-        userId = SessionManager.getUserId(this);
-        databaseHelper = new DatabaseHelper(this);
+        pets = new PetRepository(this);
 
         findViewById(R.id.btnBackDetail).setOnClickListener(v -> finish());
         findViewById(R.id.btnEditPet).setOnClickListener(v -> {
@@ -41,25 +41,29 @@ public class PetDetailActivity extends Activity {
             new AlertDialog.Builder(this)
                     .setTitle("Xóa thú cưng?")
                     .setMessage("Bạn có chắc chắn muốn xóa thú cưng này không? Hành động này không thể hoàn tác.")
-                    .setPositiveButton("Xóa", (dialog, which) -> {
-                        if (databaseHelper.deletePet(petId, userId)) {
-                            Toast.makeText(this, "Đã xóa thú cưng thành công.", Toast.LENGTH_SHORT).show();
-                            setResult(RESULT_OK);
-                            finish();
-                        } else {
-                            Toast.makeText(this, "Không thể xóa thú cưng lúc này.", Toast.LENGTH_SHORT).show();
-                        }
-                    })
+                    .setPositiveButton("Xóa", (dialog, which) ->
+                            AppExecutors.runResult(() -> pets.deletePet(petId), result -> {
+                                if (isFinishing() || isDestroyed()) return;
+                                if (result.isOk() && Boolean.TRUE.equals(result.value)) {
+                                    Toast.makeText(this, "Đã xóa thú cưng thành công.", Toast.LENGTH_SHORT).show();
+                                    setResult(RESULT_OK);
+                                    finish();
+                                } else if (!result.isOk()) {
+                                    Errors.show(this, result);
+                                } else {
+                                    Toast.makeText(this, "Không thể xóa thú cưng lúc này.", Toast.LENGTH_SHORT).show();
+                                }
+                            }))
                     .setNegativeButton("Hủy", null)
                     .show();
         });
-        renderPet();
+        // renderPet() được gọi trong onResume() ngay sau đó; không tải hai lần.
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (databaseHelper != null && petId > 0) renderPet();
+        if (pets != null && petId > 0) renderPet();
     }
 
     @Override
@@ -69,12 +73,23 @@ public class PetDetailActivity extends Activity {
     }
 
     private void renderPet() {
-        Pet pet = databaseHelper.getPetForUser(petId, userId);
-        if (pet == null) {
-            Toast.makeText(this, "Không tìm thấy thú cưng hoặc bạn không có quyền xem.", Toast.LENGTH_LONG).show();
-            finish();
-            return;
-        }
+        final int token = ++loadToken;
+        AppExecutors.runResult(() -> pets.getPet(petId), result -> {
+            if (isFinishing() || isDestroyed() || token != loadToken) return;
+            if (!result.isOk()) {
+                Errors.show(this, result);
+                return;
+            }
+            if (result.value == null) {
+                Toast.makeText(this, "Không tìm thấy thú cưng hoặc bạn không có quyền xem.", Toast.LENGTH_LONG).show();
+                finish();
+                return;
+            }
+            showPet(result.value);
+        });
+    }
+
+    private void showPet(Pet pet) {
         setText(R.id.tvDetailPetName, pet.name);
         setText(R.id.tvDetailPetType, pet.petTypeName);
         setText(R.id.tvDetailPetBreed, valueOrFallback(pet.breedName, "Chưa rõ / Lai"));
@@ -88,14 +103,9 @@ public class PetDetailActivity extends Activity {
         ImageView avatar = findViewById(R.id.ivDetailPetAvatar);
         TextView placeholder = findViewById(R.id.tvDetailPetIcon);
         if (!TextUtils.isEmpty(pet.avatarUri)) {
-            try {
-                avatar.setImageURI(Uri.parse(pet.avatarUri));
-                avatar.setVisibility(ImageView.VISIBLE);
-                placeholder.setVisibility(TextView.GONE);
-            } catch (Exception ex) {
-                avatar.setVisibility(ImageView.GONE);
-                placeholder.setVisibility(TextView.VISIBLE);
-            }
+            ImageLoader.load(avatar, pet.avatarUri, android.R.drawable.ic_menu_gallery);
+            avatar.setVisibility(ImageView.VISIBLE);
+            placeholder.setVisibility(TextView.GONE);
         } else {
             avatar.setVisibility(ImageView.GONE);
             placeholder.setVisibility(TextView.VISIBLE);

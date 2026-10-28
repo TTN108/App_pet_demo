@@ -13,3 +13,10 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# App Pet v4
+local.properties
+tools/pet/
+tools/wiki_out/
+tools/imagekit_state.csv
+tools/__pycache__/

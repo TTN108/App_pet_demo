@@ -11,7 +11,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.example.apppet.R;
-import com.example.apppet.data.DatabaseHelper;
+import com.example.apppet.net.TimeUtil;
 import com.example.apppet.model.Message;
 
 import java.util.ArrayList;
@@ -20,11 +20,11 @@ import java.util.List;
 public class MessageAdapter extends BaseAdapter {
     private final Context context;
     private final LayoutInflater inflater;
-    private final long currentUserId;
+    private final String currentUserId;
     private final int maxTextWidth;
     private final List<Message> items = new ArrayList<>();
 
-    public MessageAdapter(Context context, long currentUserId) {
+    public MessageAdapter(Context context, String currentUserId) {
         this.context = context;
         this.inflater = LayoutInflater.from(context);
         this.currentUserId = currentUserId;
@@ -52,7 +52,7 @@ public class MessageAdapter extends BaseAdapter {
         if (row == null) row = inflater.inflate(R.layout.item_message, parent, false);
 
         Message m = getItem(position);
-        boolean mine = m.senderId == currentUserId;
+        boolean mine = currentUserId != null && currentUserId.equals(m.senderId);
 
         LinearLayout bubble = row.findViewById(R.id.llBubble);
         TextView sender = row.findViewById(R.id.tvMsgSender);
@@ -93,7 +93,7 @@ public class MessageAdapter extends BaseAdapter {
     /** Hôm nay: HH:mm. Ngày khác: dd/MM HH:mm. */
     private String formatTime(String createdAt) {
         if (createdAt == null || createdAt.length() < 16) return "";
-        String today = DatabaseHelper.now().substring(0, 10);
+        String today = TimeUtil.nowLocal().substring(0, 10);
         String hhmm = createdAt.substring(11, 16);
         if (createdAt.startsWith(today)) return hhmm;
         return createdAt.substring(8, 10) + "/" + createdAt.substring(5, 7) + " " + hhmm;

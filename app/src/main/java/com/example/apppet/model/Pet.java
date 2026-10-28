@@ -2,7 +2,7 @@ package com.example.apppet.model;
 
 public class Pet {
     public long id;
-    public long userId;
+    public String userId;
     public long petTypeId;
     public Long breedId;
     public String name;
@@ -20,7 +20,7 @@ public class Pet {
     public Pet() {
     }
 
-    public Pet(long id, long userId, String name, long petTypeId, String petTypeName, String breedName, String avatarUri) {
+    public Pet(long id, String userId, String name, long petTypeId, String petTypeName, String breedName, String avatarUri) {
         this.id = id;
         this.userId = userId;
         this.name = name;
@@ -32,7 +32,6 @@ public class Pet {
 
     // Helper getters for compatibility
     public int getId() { return (int) id; }
-    public int getUserId() { return (int) userId; }
     public String getName() { return name != null ? name : ""; }
     public int getCategoryId() { return (int) petTypeId; }
     public String getCategoryName() { return petTypeName != null ? petTypeName : "Mèo"; }
