@@ -6,7 +6,6 @@ import com.example.apppet.BuildConfig;
 public final class Config {
     public static final String SUPABASE_URL = trimSlash(BuildConfig.SUPABASE_URL);
     public static final String SUPABASE_ANON_KEY = BuildConfig.SUPABASE_ANON_KEY;
-    public static final String IMAGEKIT_ENDPOINT = trimSlash(BuildConfig.IMAGEKIT_ENDPOINT);
 
     /**
      * true: cho đăng nhập bằng tên đăng nhập (app gọi hàm login_email để đổi sang email). Đổi lại thành false

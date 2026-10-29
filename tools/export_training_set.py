@@ -6,7 +6,6 @@ Xuất bộ dữ liệu huấn luyện từ bộ sưu tập ĐÃ DUYỆT trên S
 Dùng SERVICE ROLE KEY (chỉ ở máy bạn qua biến môi trường). Ảnh chỉ lấy khi status = APPROVED.
     set SUPABASE_URL=https://xxx.supabase.co
     set SUPABASE_SERVICE_ROLE_KEY=eyJ...
-    set IMAGEKIT_ENDPOINT=https://ik.imagekit.io/your_id        (cần nếu ảnh nằm ở ImageKit)
     python export_training_set.py --out train_data
     python train_breed_classifier.py --pet-dir train_data
 
@@ -61,12 +60,11 @@ def fetch_rows(session, base, key):
         after = rows[-1]["id"]
 
 
-def image_url(path, endpoint):
+def image_url(path, base):
+    """URL tuyệt đối (ảnh người dùng ở bucket contrib) giữ nguyên; đường dẫn tương đối nằm trong bucket public gallery."""
     if path.startswith("http://") or path.startswith("https://"):
         return path
-    if not endpoint:
-        raise ValueError("Ảnh nằm ở ImageKit nhưng chưa đặt IMAGEKIT_ENDPOINT")
-    return endpoint.rstrip("/") + "/" + path.lstrip("/")
+    return base.rstrip("/") + "/storage/v1/object/public/gallery/" + path.lstrip("/")
 
 
 def main(argv=None):
@@ -79,7 +77,6 @@ def main(argv=None):
     base, key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
     if not base or not key:
         sys.exit("Thiếu SUPABASE_URL hoặc SUPABASE_SERVICE_ROLE_KEY.")
-    endpoint = os.environ.get("IMAGEKIT_ENDPOINT", "")
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     session = requests.Session()
@@ -95,7 +92,7 @@ def main(argv=None):
         dest = out / rel
         if not dest.exists():
             try:
-                resp = session.get(image_url(row["image_path"], endpoint), timeout=60)
+                resp = session.get(image_url(row["image_path"], base), timeout=60)
                 resp.raise_for_status()
                 img = Image.open(io.BytesIO(resp.content))
                 img.load()

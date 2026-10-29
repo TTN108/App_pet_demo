@@ -26,7 +26,7 @@ public final class AdminRepository {
 
     public List<AdminItem> pendingImages() {
         Map<String, String> q = new HashMap<>();
-        q.put("select", "id,pet_type_id,breed_id,image_path,origin,label_changed,title,created_at");
+        q.put("select", "id,pet_type_id,breed_id,image_path,thumb_path,origin,label_changed,title,created_at");
         q.put("status", "eq.PENDING");
         q.put("order", "id.asc");
         q.put("limit", String.valueOf(LIMIT));
@@ -44,7 +44,7 @@ public final class AdminRepository {
             }
             body.append("\nGửi lúc ").append(TimeUtil.isoToLocal(Json.str(o, "created_at")));
             it.body = body.toString();
-            it.imageUrl = ImageKitUrls.thumb(Json.str(o, "image_path"), 600);
+            it.imageUrl = StorageUrls.thumbOrFull(Json.str(o, "thumb_path"), Json.str(o, "image_path"));
             items.add(it);
         }
         return items;

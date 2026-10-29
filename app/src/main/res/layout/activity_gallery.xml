@@ -107,7 +107,7 @@
             android:layout_gravity="center"
             android:gravity="center"
             android:padding="32dp"
-            android:text="Chưa có ảnh cho lựa chọn này.\nChạy upload_imagekit.py và import_supabase.py trong thư mục tools để thêm ảnh."
+            android:text="Chưa có ảnh cho lựa chọn này.\nChạy upload_storage.py và import_supabase.py trong thư mục tools để thêm ảnh."
             android:textColor="@color/text_secondary"
             android:textSize="14sp"
             android:visibility="gone" />

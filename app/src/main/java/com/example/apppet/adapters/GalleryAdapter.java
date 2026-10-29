@@ -49,7 +49,7 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.GalleryV
         GalleryImage item = items.get(position);
         ColorDrawable placeholder = new ColorDrawable(Color.parseColor("#E2E8F0"));
         Glide.with(holder.imgPhoto.getContext())
-                .load(item.thumbUrl(grid ? 400 : 240))
+                .load(item.thumbUrl())
                 .centerCrop()
                 .placeholder(placeholder)
                 .error(placeholder)

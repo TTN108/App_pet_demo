@@ -3,6 +3,7 @@ package com.example.apppet.net;
 import android.content.Context;
 
 import com.example.apppet.data.CatalogDatabase;
+import com.example.apppet.data.ImageStorage;
 import com.example.apppet.model.WikiArticle;
 
 import org.json.JSONArray;
@@ -29,9 +30,17 @@ public final class ContributionRepository {
     public long contributeImage(String userId, long petTypeId, long breedId, File jpeg, String origin,
                                 long recognitionId, String title) {
         String url = api.uploadContributionImage(userId, jpeg);
+        String thumbUrl = null;
+        File thumb = new File(jpeg.getParentFile(), jpeg.getName() + ".t.jpg");
+        try {
+            if (ImageStorage.writeThumbnail(jpeg, thumb, 360)) thumbUrl = api.uploadContributionImage(userId, thumb);
+        } finally {
+            //noinspection ResultOfMethodCallIgnored
+            thumb.delete();
+        }
         Object id = api.rpc("contribute_gallery_image", Json.obj(
                 "p_pet_type_id", petTypeId, "p_breed_id", breedId, "p_image_url", url, "p_origin", origin,
-                "p_recognition_id", recognitionId > 0 ? recognitionId : null, "p_title", title));
+                "p_recognition_id", recognitionId > 0 ? recognitionId : null, "p_title", title, "p_thumb_url", thumbUrl));
         return id instanceof Number ? ((Number) id).longValue() : -1L;
     }
 

@@ -42,7 +42,7 @@ import java.util.List;
 
 /**
  * Bộ sưu tập ảnh theo loài/giống. Thông tin ảnh lấy từ Supabase theo từng trang (cuộn gần cuối thì tải tiếp),
- * ảnh hiển thị là bản thu nhỏ do ImageKit tạo theo yêu cầu; có xem lớn và tải ảnh gốc về máy.
+ * ảnh hiển thị là bản thu nhỏ tạo sẵn trong Supabase Storage; có xem lớn và tải ảnh gốc về máy.
  */
 public class GalleryActivity extends AppCompatActivity implements GalleryAdapter.Listener {
     public static final String EXTRA_PET_TYPE_ID = "pet_type_id";

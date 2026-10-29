@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Nhập thông tin ảnh bộ sưu tập (đã upload lên ImageKit) vào bảng gallery_images của Supabase.
+Nhập thông tin ảnh bộ sưu tập (đã upload lên Supabase Storage bằng upload_storage.py) vào bảng gallery_images.
 
 Dùng SERVICE ROLE KEY (quyền cao nhất, bỏ qua RLS) - chỉ để ở máy bạn qua biến môi trường, KHÔNG đưa vào app:
     set SUPABASE_URL=https://<ref>.supabase.co
     set SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
-Chạy:  python import_supabase.py --pet-dir pet --state imagekit_state.csv [--dry-run]
+Chạy:  python import_supabase.py --pet-dir pet --state storage_state.csv [--dry-run]
 Upsert theo (source_type, external_id) nên chạy lại an toàn; ảnh nhập vào có status APPROVED ngay (nguồn API).
 """
 import argparse
@@ -51,6 +51,7 @@ def build_rows(manifest, state):
             "external_id": m["external_id"],
             "status": "APPROVED",
             "image_path": st["image_path"],
+            "thumb_path": st.get("thumb_path") or None,
             "width": int(st["width"]) if st.get("width") else None,
             "height": int(st["height"]) if st.get("height") else None,
             "title": m["breed_name"],
@@ -84,13 +85,13 @@ def post_batch(session, base, key, rows, retries=4):
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Nhập gallery_images vào Supabase.")
     ap.add_argument("--pet-dir", default="pet")
-    ap.add_argument("--state", default="imagekit_state.csv")
+    ap.add_argument("--state", default="storage_state.csv")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args(argv)
 
     manifest = load_csv(Path(args.pet_dir) / "manifest.csv")
     if not Path(args.state).exists():
-        sys.exit("Không thấy %s. Chạy upload_imagekit.py trước." % args.state)
+        sys.exit("Không thấy %s. Chạy upload_storage.py trước." % args.state)
     rows, skipped = build_rows(manifest, load_csv(args.state))
     print("Sẽ nhập %d ảnh (bỏ qua %d ảnh chưa upload hoặc giống chưa có trong danh mục)" % (len(rows), skipped))
     if args.dry_run:

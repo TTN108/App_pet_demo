@@ -1,7 +1,7 @@
 -- App Pet - schema Supabase (Postgres). Chạy trong SQL Editor, THEO THỨ TỰ 001 -> 002 -> 003.
 -- Catalog tĩnh (wiki) nằm trong app (SQLite), không có trên server.
 -- Khác schema v2 cũ: users -> profiles (gắn auth.users); thời gian là timestamptz; image_uri -> image_url;
--- gallery_images.image_url -> image_path (đường dẫn ImageKit, hoặc URL tuyệt đối nếu là ảnh người dùng);
+-- gallery_images.image_url -> image_path (đường dẫn trong bucket gallery, hoặc URL tuyệt đối nếu là ảnh người dùng; v6 thêm thumb_path ở 005);
 -- recognition_results có thêm user_id; messages có changed_at (để đồng bộ tin sửa/xóa); bỏ CHECK mâu thuẫn
 -- "source_type=USER phải có contributor_id" vì xung đột với ON DELETE SET NULL.
 

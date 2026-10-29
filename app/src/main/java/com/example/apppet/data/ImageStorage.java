@@ -85,6 +85,38 @@ public final class ImageStorage {
         }
     }
 
+    /**
+     * Tạo ảnh nhỏ (cạnh dài <= maxSide) từ file JPEG đã được chuẩn hóa chiều xoay (xem copyToAppStorage).
+     * Gói free của Supabase không tự thu nhỏ ảnh nên app tự tạo trước khi gửi.
+     * @return true nếu tạo được dest
+     */
+    public static boolean writeThumbnail(File src, File dest, int maxSide) {
+        try {
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(src.getAbsolutePath(), bounds);
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return false;
+            int sample = 1;
+            while (Math.max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSide) sample *= 2;
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inSampleSize = sample;
+            Bitmap bmp = BitmapFactory.decodeFile(src.getAbsolutePath(), opts);
+            if (bmp == null) return false;
+            float scale = Math.min(1f, (float) maxSide / Math.max(bmp.getWidth(), bmp.getHeight()));
+            Bitmap scaled = scale < 1f
+                    ? Bitmap.createScaledBitmap(bmp, Math.round(bmp.getWidth() * scale), Math.round(bmp.getHeight() * scale), true)
+                    : bmp;
+            try (FileOutputStream out = new FileOutputStream(dest)) {
+                scaled.compress(Bitmap.CompressFormat.JPEG, 72, out);
+            }
+            if (scaled != bmp) scaled.recycle();
+            bmp.recycle();
+            return true;
+        } catch (IOException | RuntimeException ex) {
+            return false;
+        }
+    }
+
     /** Sao chép một file đã nằm trong bộ nhớ của app sang thư mục khác (dùng để xếp hàng gửi ảnh đóng góp). */
     public static String copyOwned(Context context, String fileUri, String dir) throws IOException {
         File src = new File(Uri.parse(fileUri).getPath());

@@ -5,7 +5,7 @@ Sinh dữ liệu danh mục dùng chung cho 2 nơi, với ID CỐ ĐỊNH giốn
   1) App Android (SQLite, offline): app/src/main/assets/db/catalog_schema.sql, catalog_seed.sql, catalog_version.txt
      gồm loài, giống, alias nhận diện, danh mục wiki, bài wiki (bài viết tay + bài đã cào).
   2) Supabase (Postgres): supabase/003_seed_catalog.sql gồm loài, giống, alias và cộng đồng chat theo loài.
-Ảnh bộ sưu tập KHÔNG nằm ở đây: dùng upload_imagekit.py + import_supabase.py.
+Ảnh bộ sưu tập KHÔNG nằm ở đây: dùng upload_storage.py + import_supabase.py.
 
 Chạy:  python build_catalog.py --wiki wiki_out/wiki_articles.jsonl --check
 """

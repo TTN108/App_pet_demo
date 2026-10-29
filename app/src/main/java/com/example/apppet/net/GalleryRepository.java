@@ -15,9 +15,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Bộ sưu tập ảnh: thông tin ảnh ở Supabase (gallery_images), file ảnh ở ImageKit. Phân trang theo khóa (id), gọi từ luồng nền. */
+/** Bộ sưu tập ảnh: thông tin ảnh ở Supabase (gallery_images), file ảnh ở Supabase Storage. Phân trang theo khóa (id), gọi từ luồng nền. */
 public final class GalleryRepository {
-    private static final String COLUMNS = "id,pet_type_id,breed_id,source_type,image_path,width,height,title,description,source_url";
+    private static final String COLUMNS = "id,pet_type_id,breed_id,source_type,image_path,thumb_path,width,height,title,description,source_url";
 
     private final SupabaseClient api;
     private final CatalogDatabase catalog;
@@ -71,6 +71,7 @@ public final class GalleryRepository {
             g.breedId = Json.lng(o, "breed_id");
             g.sourceType = Json.str(o, "source_type");
             g.imagePath = Json.str(o, "image_path");
+            g.thumbPath = Json.str(o, "thumb_path");
             g.width = o.optInt("width", 0);
             g.height = o.optInt("height", 0);
             g.title = Json.str(o, "title");

@@ -28,7 +28,6 @@ android {
         // anon key được phép nằm trong app (an toàn nhờ RLS). TUYỆT ĐỐI không dùng service_role key ở đây.
         buildConfigField("String", "SUPABASE_URL", "\"${cfg("SUPABASE_URL")}\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"${cfg("SUPABASE_ANON_KEY")}\"")
-        buildConfigField("String", "IMAGEKIT_ENDPOINT", "\"${cfg("IMAGEKIT_ENDPOINT")}\"")
     }
     buildFeatures {
         buildConfig = true

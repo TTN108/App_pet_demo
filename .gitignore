@@ -18,5 +18,5 @@ local.properties
 local.properties
 tools/pet/
 tools/wiki_out/
-tools/imagekit_state.csv
+tools/storage_state.csv
 tools/__pycache__/
